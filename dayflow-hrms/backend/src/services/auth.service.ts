@@ -161,8 +161,10 @@ export const AuthService = {
   },
 
   async resendVerification(dto: ResendVerificationRequest): Promise<{ message: string }> {
-    if (!dto.email) {
-      throw new AppError('VALIDATION_ERROR', 'Email is required', 400);
+    if (!dto.email || !EMAIL_RE.test(dto.email)) {
+      throw new AppError('VALIDATION_ERROR', 'A valid email is required', 400, [
+        { field: 'email', message: 'Must be a valid email address' },
+      ]);
     }
 
     // Always return the same generic message to avoid leaking whether an

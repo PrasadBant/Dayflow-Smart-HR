@@ -114,6 +114,11 @@ export const LeaveService = {
         { field: 'status', message: "Must be 'Approved' or 'Rejected'" },
       ]);
     }
+    if (dto.decisionComments !== undefined && typeof dto.decisionComments !== 'string') {
+      throw new AppError('VALIDATION_ERROR', 'decisionComments must be a string', 400, [
+        { field: 'decisionComments', message: 'Must be a string if provided' },
+      ]);
+    }
 
     const existing = await LeaveRepository.findById(id);
     if (!existing) {
