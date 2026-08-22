@@ -2,9 +2,9 @@ import type { ErrorCode, ApiErrorDetail, ApiError } from '../../../../shared/typ
 
 /**
  * Global mock mode flag.
- * Default is `true` for Phase D1 so frontend (Person C) can work immediately without a running backend.
+ * Default is `false` for Phase D4 so production/integration path hits the real backend.
  */
-export let USE_MOCKS = true;
+export let USE_MOCKS = false;
 
 export function setUseMocks(useMocks: boolean): void {
   USE_MOCKS = useMocks;
