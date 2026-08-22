@@ -157,7 +157,7 @@ npm run dev
 | :--- | :--- | :--- | :--- |
 | `PORT` | Backend | Express HTTP Server listening port | `5000` |
 | `DATABASE_URL` | Backend | PostgreSQL connection URI | `postgres://dayflow_user:dayflow_password@localhost:5432/dayflow_db` |
-| `JWT_SECRET` | Backend | Cryptographic secret for signing JWT tokens | `super-secret-jwt-key-change-in-production-12345` |
+| `JWT_SECRET` | Backend | Cryptographic secret for signing JWT tokens | see `docker-compose.yml` / `deployment/env.template` — rotate before any real deployment |
 | `NODE_ENV` | Backend | Runtime execution environment | `development` / `production` |
 | `VITE_API_URL` | Frontend | Public backend API URL accessible by browser | `http://localhost:5000/api` |
 

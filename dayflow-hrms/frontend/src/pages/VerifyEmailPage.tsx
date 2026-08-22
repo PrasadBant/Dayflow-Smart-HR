@@ -24,7 +24,7 @@ export const VerifyEmailPage: React.FC = () => {
     setErrorMessage(null);
 
     if (!code) {
-      setErrorMessage('Please enter your 6-digit verification code.');
+      setErrorMessage('Please paste your verification token.');
       return;
     }
 
@@ -62,8 +62,8 @@ export const VerifyEmailPage: React.FC = () => {
           <CardTitle style={{ fontSize: 'var(--text-2xl)' }}>Verify Your Email</CardTitle>
           <CardDescription>
             {initialEmail
-              ? `We sent a verification code to ${initialEmail}`
-              : 'Enter the verification code sent to your registered email address'}
+              ? `We sent a verification token to ${initialEmail}`
+              : 'Paste the verification token sent to your registered email address'}
           </CardDescription>
         </CardHeader>
 
@@ -92,13 +92,13 @@ export const VerifyEmailPage: React.FC = () => {
                   </FormField>
                 )}
 
-                <FormField label="Verification Code" required helperText="Enter the 6-digit code sent to your inbox" htmlFor="verify-code">
+                <FormField label="Verification Token" required helperText="Paste the verification token sent to your inbox (or, in development, printed to the server console on signup)" htmlFor="verify-code">
                   <div style={{ position: 'relative' }}>
                     <KeyRound size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-slate-400)' }} />
                     <Input
                       id="verify-code"
                       type="text"
-                      placeholder="123456"
+                      placeholder="Paste your verification token"
                       value={code}
                       onChange={(e) => setCode(e.target.value)}
                       style={{ paddingLeft: '40px' }}

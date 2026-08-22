@@ -111,3 +111,15 @@ export async function decideLeaveRequest(id: string, data: DecideLeaveRequest): 
     body: JSON.stringify(data),
   });
 }
+
+/**
+ * Aliases matching the `LeaveApiClient` interface (utils/apiHelper.ts) that
+ * LeavePage.tsx actually codes against via dynamic import. Without these,
+ * `leaveClient.create`/`.listMine`/`.listPending`/`.decide` are all
+ * `undefined` and the page silently falls back to hardcoded mock data
+ * regardless of USE_MOCKS or backend availability.
+ */
+export const create = createLeaveRequest;
+export const listMine = getMyLeaveRequests;
+export const listPending = () => getAllLeaveRequests({ status: 'Pending' });
+export const decide = decideLeaveRequest;
