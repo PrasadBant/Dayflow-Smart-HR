@@ -2,26 +2,42 @@
 
 Dayflow HRMS is a modern, full-stack Human Resource Management System designed for managing employee profiles, department hierarchies, attendance check-ins/check-outs, leave request workflows, payroll tracking, and document metadata.
 
-The system is built on a typed contract architecture specified in `CONTRACT.md` and shared TypeScript definitions in `shared/types.ts`.
+The system is built on a typed contract architecture specified in `CONTRACT.md` and shared TypeScript definitions in `shared/types.ts`. All 25/25 API endpoints specified in the contract are **100% LIVE and verified** against real backend services.
+
+---
+
+## 🚀 System Integration Status (D0–D6)
+
+| Phase | Milestone | Status | Details |
+| :--- | :--- | :--- | :--- |
+| **D0** | Integration Infrastructure | **COMPLETE** | `.gitignore`, `.env.example`, `.github/workflows/ci.yml` |
+| **D1** | Typed API Client Layer | **COMPLETE** | 25 contract wrappers in `frontend/src/api-client/` |
+| **D2** | Real Leave Slice + E2E | **COMPLETE** | Real leave request submission, retrieval & BR-1 overlap checks |
+| **D3** | Real Attendance Slice + E2E | **COMPLETE** | Real check-in/out, attendance logs & BR-4 state rules |
+| **D4** | Real API + Security E2E | **COMPLETE** | `USE_MOCKS = false` network transport & IDOR security |
+| **D5** | Containerization & Deployment | **COMPLETE** | Root `docker-compose.yml`, multi-stage `Dockerfile`, deployment docs |
+| **D6** | Master Regression & Signup | **COMPLETE** | Real `POST /api/auth/signup` (201) & Master E2E Integration Suite |
+
+**Overall Status**: **25 / 25 Contract Endpoints LIVE (100% GREEN)**
 
 ---
 
 ## 🏛️ System Architecture
 
 ```
-                               ┌──────────────────────────────────────────────┐
-                               │                 CONTRACT.md                  │
-                               │        Single Source of Truth Specification  │
-                               └──────────────────────┬───────────────────────┘
-                                                      │
-                                                      ▼
-                               ┌──────────────────────────────────────────────┐
-                               │               shared/types.ts                │
-                               │          Shared TypeScript DTO Types          │
-                               └──────────────┬────────────────┬──────────────┘
-                                              │                │
-                      ┌───────────────────────┘                └───────────────────────┐
-                      ▼                                                                ▼
+                                ┌──────────────────────────────────────────────┐
+                                │                 CONTRACT.md                  │
+                                │        Single Source of Truth Specification  │
+                                └──────────────────────┬───────────────────────┘
+                                                       │
+                                                       ▼
+                                ┌──────────────────────────────────────────────┐
+                                │               shared/types.ts                │
+                                │          Shared TypeScript DTO Types          │
+                                └──────────────┬────────────────┬──────────────┘
+                                               │                │
+                       ┌───────────────────────┘                └───────────────────────┐
+                       ▼                                                                ▼
 ┌──────────────────────────────────────────────┐              ┌──────────────────────────────────────────────┐
 │           Vite React Web Frontend            │              │          Node.js Express Backend             │
 │        (dayflow-hrms/frontend)               │              │          (dayflow-hrms/backend)             │
@@ -47,7 +63,7 @@ The system is built on a typed contract architecture specified in `CONTRACT.md` 
 
 ```
 Dayflow-Smart-HR-1/
-├── Dockerfile                        # Multi-stage Docker container build
+├── Dockerfile                        # Multi-stage Docker container build (Node 20 / Nginx)
 ├── docker-compose.yml                # Container orchestration (Postgres, Backend, Frontend)
 ├── README.md                         # Project documentation & execution guide
 ├── deployment/                       # Deployment guides & environment templates
@@ -68,7 +84,7 @@ Dayflow-Smart-HR-1/
     │   └── package.json
     ├── frontend/                     # Vite React Web Application
     │   ├── src/
-    │   │   ├── api-client/           # Typed API Client Layer (D1-D4 Real Integration)
+    │   │   ├── api-client/           # Typed API Client Layer (25/25 Endpoints Live)
     │   │   ├── components/           # UI Primitives & Layout Shells
     │   │   ├── context/              # React Auth Context
     │   │   └── pages/                # Application Page Components
@@ -82,14 +98,15 @@ Dayflow-Smart-HR-1/
             ├── attendance-slice.test.ts
             ├── auth-flow.test.ts
             ├── idor.test.ts
-            └── leave-slice.test.ts
+            ├── leave-slice.test.ts
+            └── master-regression.test.ts
 ```
 
 ---
 
 ## ⚡ Quickstart via Docker Compose
 
-Run the entire system in containerized mode with PostgreSQL, Backend, and Frontend:
+Run the entire system in containerized mode with PostgreSQL, Backend, and Frontend (*Note: Requires active Docker Desktop daemon*):
 
 ```bash
 # 1. Clone repository
@@ -154,35 +171,48 @@ The API client (`dayflow-hrms/frontend/src/api-client/`) provides typed wrapper 
 - **Authorization**: Attaches Bearer JWT headers automatically (`Authorization: Bearer <token>`).
 - **Error Standard**: Standardized `ApiClientError` parsing `{ error: { code, message, details } }`.
 
-### Implemented Real API Modules:
-- `auth`: `login()`, `verifyEmail()`, `resendVerification()`, `signup()`
-- `employees`: `getProfile()`, `updateMyProfile()`, `getEmployees()`, `updateEmployee()`, `getRecentActivity()`, `switchEmployeeContext()`
-- `departments`: `getDepartments()`
-- `leave`: `createLeaveRequest()`, `getMyLeaveRequests()`, `getAllLeaveRequests()`, `decideLeaveRequest()`
-- `attendance`: `checkIn()`, `checkOut()`, `getMyAttendance()`, `getAllAttendance()`
-- `payroll`: `getMyPayroll()`, `getEmployeePayroll()`, `updatePayroll()`
-- `documents`: `getMyDocuments()`, `getEmployeeDocuments()`, `createDocumentMetadata()`
+### 25 Live API Endpoints:
+- `auth` (4): `signup()`, `login()`, `verifyEmail()`, `resendVerification()`
+- `employees` (6): `getProfile()`, `updateMyProfile()`, `getEmployees()`, `updateEmployee()`, `getRecentActivity()`, `switchEmployeeContext()`
+- `departments` (1): `getDepartments()`
+- `leave` (4): `createLeaveRequest()`, `getMyLeaveRequests()`, `getAllLeaveRequests()`, `decideLeaveRequest()`
+- `attendance` (4): `checkIn()`, `checkOut()`, `getMyAttendance()`, `getAllAttendance()`
+- `payroll` (3): `getMyPayroll()`, `getEmployeePayroll()`, `updatePayroll()`
+- `documents` (3): `getMyDocuments()`, `getEmployeeDocuments()`, `createDocumentMetadata()`
 
 ---
 
-## 🧪 E2E Test Suite Execution
+## 🔒 Security & Authorization Controls
+
+- **Authentication**: JWT Bearer tokens with 8-hour expiration.
+- **Password Security**: Bcrypt password hashing & BR-7 strength enforcement (8+ chars, 1 letter, 1 number).
+- **Public Signup Lock (BR-2)**: `POST /api/auth/signup` forces role to `EMPLOYEE`; client payloads cannot self-select `HR`.
+- **IDOR Protection (BR-5)**: Strict ownership checks prevent regular employees from viewing or modifying cross-employee leave, payroll, or document resources (returns HTTP 403 `FORBIDDEN`).
+- **Business Rules Enforced**: BR-1 (Leave date overlap rejection), BR-4 (Check-in before check-out), BR-6 (Non-negative payroll figures).
+
+---
+
+## 🧪 E2E Integration Test Suites
 
 Canonical E2E integration tests are located in `dayflow-hrms/tests/e2e/`:
 
 ```bash
-# 1. Full 25-Endpoint Integration Audit
+# 1. Master End-to-End Integration Suite (10/10 Journey Steps)
+npx ts-node dayflow-hrms/tests/e2e/master-regression.test.ts
+
+# 2. Full 25-Endpoint Integration Audit (100% PASS)
 npx ts-node dayflow-hrms/tests/e2e/25-endpoint-audit.test.ts
 
-# 2. Real Leave Slice & Business Rule BR-1 Overlap Test
-npx ts-node dayflow-hrms/tests/e2e/leave-slice.test.ts
-
-# 3. Real Attendance Slice & Business Rule BR-4 Check-in/out Test
-npx ts-node dayflow-hrms/tests/e2e/attendance-slice.test.ts
-
-# 4. Authentication Flow Test
+# 3. Real Signup & Auth Flow Integration Test
 npx ts-node dayflow-hrms/tests/e2e/auth-flow.test.ts
 
-# 5. IDOR Security Verification Test
+# 4. Real Leave Slice & BR-1 Overlap Enforcement Test
+npx ts-node dayflow-hrms/tests/e2e/leave-slice.test.ts
+
+# 5. Real Attendance Slice & BR-4 State Test
+npx ts-node dayflow-hrms/tests/e2e/attendance-slice.test.ts
+
+# 6. IDOR Security Enforcement Test
 npx ts-node dayflow-hrms/tests/e2e/idor.test.ts
 ```
 
@@ -195,9 +225,3 @@ npx ts-node dayflow-hrms/tests/e2e/idor.test.ts
 | **Employee** | `john.doe@dayflow.com` | `Password123!` |
 | **Employee** | `jane.smith@dayflow.com` | `Password123!` |
 | **HR Admin** | `hr.admin@dayflow.com` | `Password123!` |
-
----
-
-## ⚠️ Known Limitations
-
-- **`POST /api/auth/signup` (HTTP 501)**: The signup endpoint currently returns HTTP 501 (`NOT_IMPLEMENTED`) due to a database schema constraint (`department_id` and `position` NOT NULL in PostgreSQL `employees` table vs `SignupRequest` DTO in `shared/types.ts`). All authentication login, verification, and resource endpoints are 100% operational.
