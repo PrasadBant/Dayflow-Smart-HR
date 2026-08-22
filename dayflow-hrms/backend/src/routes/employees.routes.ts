@@ -63,7 +63,9 @@ router.get(
 router.get('/', requireAuth, requireRole('HR'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { page, pageSize } = parsePagination(req.query as Record<string, unknown>);
-    const result = await EmployeesService.list(page, pageSize);
+    const search = typeof req.query.search === 'string' ? req.query.search : undefined;
+    const departmentId = typeof req.query.departmentId === 'string' ? req.query.departmentId : undefined;
+    const result = await EmployeesService.list(page, pageSize, { search, departmentId });
     res.status(200).json(result);
   } catch (err) {
     next(err);

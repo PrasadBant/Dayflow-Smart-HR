@@ -1,0 +1,20 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "CommonJS",
+    "moduleResolution": "node",
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "strict": false,
+    "baseUrl": ".",
+    "paths": {
+      "@shared/*": ["shared/*"],
+      "@shared/types": ["shared/types"]
+    }
+  },
+  "ts-node": {
+    "transpileOnly": true
+  },
+  "include": ["tests/**/*", "scripts/**/*", "shared/**/*"]
+}

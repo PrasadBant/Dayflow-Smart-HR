@@ -54,8 +54,12 @@ export const EmployeesService = {
     return updated;
   },
 
-  async list(page: number, pageSize: number): Promise<Paginated<Employee>> {
-    return EmployeesRepository.list(page, pageSize);
+  async list(
+    page: number,
+    pageSize: number,
+    filters?: { search?: string; departmentId?: string }
+  ): Promise<Paginated<Employee>> {
+    return EmployeesRepository.list(page, pageSize, filters);
   },
 
   /** HR full-profile update — all fields allowed, including department/position. */

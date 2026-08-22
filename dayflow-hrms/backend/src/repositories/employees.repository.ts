@@ -89,14 +89,38 @@ export const EmployeesRepository = {
     return result.rows[0] ? mapRow(result.rows[0]) : null;
   },
 
-  async list(page: number, pageSize: number): Promise<{ items: Employee[]; total: number }> {
+  async list(
+    page: number,
+    pageSize: number,
+    filters: { search?: string; departmentId?: string } = {}
+  ): Promise<{ items: Employee[]; total: number }> {
     const offset = (page - 1) * pageSize;
+    const conditions: string[] = [];
+    const params: unknown[] = [];
+
+    if (filters.search) {
+      params.push(`%${filters.search}%`);
+      const idx = params.length;
+      conditions.push(
+        `(first_name ILIKE $${idx} OR last_name ILIKE $${idx} OR employee_code ILIKE $${idx})`
+      );
+    }
+    if (filters.departmentId) {
+      params.push(filters.departmentId);
+      conditions.push(`department_id = $${params.length}`);
+    }
+
+    const whereClause = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+    const listParams = [...params, pageSize, offset];
+    const limitIdx = params.length + 1;
+    const offsetIdx = params.length + 2;
+
     const [itemsResult, countResult] = await Promise.all([
       query(
-        `SELECT * FROM employees ORDER BY last_name ASC, first_name ASC LIMIT $1 OFFSET $2`,
-        [pageSize, offset]
+        `SELECT * FROM employees ${whereClause} ORDER BY last_name ASC, first_name ASC LIMIT $${limitIdx} OFFSET $${offsetIdx}`,
+        listParams
       ),
-      query(`SELECT COUNT(*)::int AS total FROM employees`),
+      query(`SELECT COUNT(*)::int AS total FROM employees ${whereClause}`, params),
     ]);
     return {
       items: itemsResult.rows.map(mapRow),

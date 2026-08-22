@@ -1,0 +1,18 @@
+{
+  "name": "dayflow-hrms-e2e",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Root project for running Dayflow HRMS E2E integration tests (tests/e2e, scripts/) against the real backend + PostgreSQL. Backend and frontend each have their own independent package.json/tsconfig.json under backend/ and frontend/ — this one exists only to make cross-project test/script files under tests/ and scripts/ runnable via ts-node.",
+  "scripts": {
+    "e2e": "ts-node scripts/run-all-e2e-tests.ts"
+  },
+  "dependencies": {
+    "pg": "^8.11.5"
+  },
+  "devDependencies": {
+    "@types/node": "^20.12.7",
+    "@types/pg": "^8.11.6",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.4.5"
+  }
+}
