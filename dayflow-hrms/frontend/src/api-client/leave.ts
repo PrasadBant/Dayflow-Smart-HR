@@ -35,44 +35,24 @@ const mockLeaveRequests: LeaveRequest[] = [
   },
 ];
 
+/**
+ * Phase D2: Real network call to POST /api/leave-requests
+ */
 export async function createLeaveRequest(data: CreateLeaveRequest): Promise<LeaveRequest> {
-  if (USE_MOCKS) {
-    const newRequest: LeaveRequest = {
-      id: `lvr-${Date.now()}-mock`,
-      employeeId: 'emp-101-uuid-mock',
-      leaveType: data.leaveType,
-      startDate: data.startDate,
-      endDate: data.endDate,
-      reason: data.reason,
-      status: 'Pending',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-    return mockDelay(newRequest);
-  }
-
   return request<LeaveRequest>('/api/leave-requests', {
     method: 'POST',
     body: JSON.stringify(data),
   });
 }
 
+/**
+ * Phase D2: Real network call to GET /api/leave-requests/me
+ */
 export async function getMyLeaveRequests(params?: {
   page?: number;
   limit?: number;
   status?: LeaveStatus;
 }): Promise<Paginated<LeaveRequest>> {
-  if (USE_MOCKS) {
-    let filtered = [...mockLeaveRequests];
-    if (params?.status) {
-      filtered = filtered.filter((r) => r.status === params.status);
-    }
-    return mockDelay({
-      items: filtered,
-      total: filtered.length,
-    });
-  }
-
   const query = new URLSearchParams();
   if (params?.page) query.set('page', params.page.toString());
   if (params?.limit) query.set('limit', params.limit.toString());
