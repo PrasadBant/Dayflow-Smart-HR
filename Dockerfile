@@ -21,7 +21,7 @@ RUN npm ci --ignore-scripts || npm install
 RUN npm run build || npx tsc
 
 EXPOSE 5000
-CMD ["node", "dist/index.js"]
+CMD ["node", "dist/backend/src/index.js"]
 
 # ==========================================
 # Stage 3: Frontend Web Build & Nginx Host
