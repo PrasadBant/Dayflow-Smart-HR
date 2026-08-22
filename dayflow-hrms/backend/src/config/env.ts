@@ -1,8 +1,7 @@
 import dotenv from 'dotenv';
 import path from 'path';
 
-// Attempt to load .env from dayflow-hrms root or CWD
-dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
+// Load environment variables from .env in application root or process CWD
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 dotenv.config();
 
@@ -15,28 +14,46 @@ export interface EnvConfig {
 }
 
 function loadEnv(): EnvConfig {
-  const DATABASE_URL = process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/dayflow_hrms';
-  const JWT_SECRET = process.env.JWT_SECRET || 'dev_secret_jwt_key_dayflow_hrms_2026';
-  const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN || process.env.VITE_API_URL || 'http://localhost:3000';
-  const rawPort = process.env.PORT || '5000';
+  const DATABASE_URL = process.env.DATABASE_URL?.trim();
+  const JWT_SECRET = process.env.JWT_SECRET?.trim();
+  const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN?.trim();
+  const rawPort = process.env.PORT?.trim() || '5000';
   const PORT = parseInt(rawPort, 10);
-  const NODE_ENV = process.env.NODE_ENV || 'development';
+  const NODE_ENV = process.env.NODE_ENV?.trim() || 'development';
 
   const missing: string[] = [];
-  if (!DATABASE_URL) missing.push('DATABASE_URL');
-  if (!JWT_SECRET) missing.push('JWT_SECRET');
-  if (!FRONTEND_ORIGIN) missing.push('FRONTEND_ORIGIN');
-  if (isNaN(PORT) || PORT <= 0) missing.push('PORT');
+
+  if (!DATABASE_URL) {
+    missing.push('DATABASE_URL');
+  }
+
+  if (!JWT_SECRET) {
+    missing.push('JWT_SECRET');
+  } else if (
+    JWT_SECRET === 'your_jwt_secret_key_here' ||
+    JWT_SECRET === 'dev_secret_jwt_key_dayflow_hrms_2026' ||
+    JWT_SECRET === 'change_me'
+  ) {
+    missing.push('JWT_SECRET (insecure development placeholder rejected)');
+  }
+
+  if (!FRONTEND_ORIGIN) {
+    missing.push('FRONTEND_ORIGIN');
+  }
+
+  if (isNaN(PORT) || PORT <= 0 || !Number.isInteger(PORT)) {
+    missing.push('PORT (must be a valid positive integer)');
+  }
 
   if (missing.length > 0) {
-    throw new Error(`[EnvConfig] Invalid or missing configuration: ${missing.join(', ')}`);
+    throw new Error(`[EnvConfig] Missing or invalid required environment variable(s): ${missing.join(', ')}`);
   }
 
   return {
-    DATABASE_URL,
-    JWT_SECRET,
+    DATABASE_URL: DATABASE_URL!,
+    JWT_SECRET: JWT_SECRET!,
     PORT,
-    FRONTEND_ORIGIN,
+    FRONTEND_ORIGIN: FRONTEND_ORIGIN!,
     NODE_ENV,
   };
 }
