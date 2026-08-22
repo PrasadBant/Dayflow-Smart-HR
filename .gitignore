@@ -1,0 +1,46 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build artifacts & outputs
+dist/
+build/
+.vite/
+out/
+*.tsbuildinfo
+
+# Environment variables
+.env
+.env.local
+.env.development
+.env.production
+.env.*.local
+
+# Logs
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Test artifacts
+coverage/
+.nyc_output/
+playwright-report/
+test-results/
+
+# OS & Editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Hackathon Reference files (Keep untracked)
+PERSON_A_FOUNDATION.md
+PERSON_B_BACKEND.md
+PERSON_C_FRONTEND.md
+PERSON_D_INTEGRATION (1).md
+TEAM_COORDINATION.md
