@@ -1,6 +1,12 @@
 import { LeaveRepository } from '../repositories/leave.repository';
 import { AppError } from '../auth/errors/AppError';
-import type { CreateLeaveRequest, LeaveRequest, Paginated } from '../../../shared/types';
+import type {
+  CreateLeaveRequest,
+  DecideLeaveRequest,
+  LeaveRequest,
+  LeaveStatus,
+  Paginated,
+} from '../../../shared/types';
 
 const VALID_LEAVE_TYPES = ['Paid', 'Sick', 'Unpaid'] as const;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -90,5 +96,35 @@ export const LeaveService = {
   async listOwn(employeeId: string, page: number, pageSize: number): Promise<Paginated<LeaveRequest>> {
     const { items, total } = await LeaveRepository.findByEmployee(employeeId, page, pageSize);
     return { items, total };
+  },
+
+  /** HR-only paginated list, optionally filtered by ?status=. */
+  async listAll(page: number, pageSize: number, status?: LeaveStatus): Promise<Paginated<LeaveRequest>> {
+    const { items, total } = await LeaveRepository.findAll(page, pageSize, status);
+    return { items, total };
+  },
+
+  /**
+   * HR decision on a leave request. Only valid while the request is Pending
+   * (matches the DB's chk_decision_consistency constraint).
+   */
+  async decide(id: string, decidedBy: string, dto: DecideLeaveRequest): Promise<LeaveRequest> {
+    if (dto.status !== 'Approved' && dto.status !== 'Rejected') {
+      throw new AppError('VALIDATION_ERROR', "status must be 'Approved' or 'Rejected'", 400, [
+        { field: 'status', message: "Must be 'Approved' or 'Rejected'" },
+      ]);
+    }
+
+    const existing = await LeaveRepository.findById(id);
+    if (!existing) {
+      throw new AppError('NOT_FOUND', 'Leave request not found', 404);
+    }
+    if (existing.status !== 'Pending') {
+      throw new AppError('CONFLICT', 'This leave request has already been decided', 409, [
+        { field: 'status', message: `Current status is '${existing.status}', expected 'Pending'` },
+      ]);
+    }
+
+    return LeaveRepository.updateDecision(id, decidedBy, dto.status, dto.decisionComments);
   },
 };

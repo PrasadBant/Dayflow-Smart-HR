@@ -111,4 +111,65 @@ export const LeaveRepository = {
       total: countResult.rows[0]?.total ?? 0,
     };
   },
+
+  /** Most recent N leave requests for an employee (used by switch-context). */
+  async findRecentByEmployee(employeeId: string, limit: number): Promise<LeaveRequest[]> {
+    const result = await query(
+      `SELECT * FROM leave_requests WHERE employee_id = $1 ORDER BY created_at DESC LIMIT $2`,
+      [employeeId, limit]
+    );
+    return result.rows.map(mapRow);
+  },
+
+  async findById(id: string): Promise<LeaveRequest | null> {
+    const result = await query(`SELECT * FROM leave_requests WHERE id = $1`, [id]);
+    return result.rows[0] ? mapRow(result.rows[0]) : null;
+  },
+
+  /** HR-only paginated list, optionally filtered by status. */
+  async findAll(
+    page: number,
+    pageSize: number,
+    status?: LeaveStatus
+  ): Promise<{ items: LeaveRequest[]; total: number }> {
+    const offset = (page - 1) * pageSize;
+    const whereClause = status ? `WHERE status = $3` : '';
+    const params = status ? [pageSize, offset, status] : [pageSize, offset];
+
+    const [itemsResult, countResult] = await Promise.all([
+      query(
+        `SELECT * FROM leave_requests ${whereClause} ORDER BY created_at DESC LIMIT $1 OFFSET $2`,
+        params
+      ),
+      query(
+        `SELECT COUNT(*)::int AS total FROM leave_requests ${status ? 'WHERE status = $1' : ''}`,
+        status ? [status] : []
+      ),
+    ]);
+
+    return {
+      items: itemsResult.rows.map(mapRow),
+      total: countResult.rows[0]?.total ?? 0,
+    };
+  },
+
+  /**
+   * Records an HR decision (Approved/Rejected). Only meaningful when the
+   * request is currently Pending — the service layer enforces that.
+   */
+  async updateDecision(
+    id: string,
+    decidedBy: string,
+    status: 'Approved' | 'Rejected',
+    decisionComments?: string
+  ): Promise<LeaveRequest> {
+    const result = await query(
+      `UPDATE leave_requests
+       SET status = $2, decided_by = $3, decided_at = CURRENT_TIMESTAMP, decision_comments = $4
+       WHERE id = $1
+       RETURNING *`,
+      [id, status, decidedBy, decisionComments ?? null]
+    );
+    return mapRow(result.rows[0]);
+  },
 };

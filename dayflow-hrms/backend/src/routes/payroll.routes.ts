@@ -3,24 +3,43 @@
  *
  * Types: Payroll, UpdatePayrollRequest (see shared/types.ts)
  *
- * STUB PHASE (B1): route skeleton only. Every handler returns 501 Not Implemented.
- * Not wired into app.ts yet; no auth/config imports (see PHASE B1 fallback).
+ * PHASE B4: all endpoints live.
  */
-import { Router, Request, Response } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
+import { requireAuth, requireRole } from '../auth/middleware';
+import { PayrollService } from '../services/payroll.service';
+import type { UpdatePayrollRequest } from '../../../shared/types';
 
 const router = Router();
 
-function notImplemented(req: Request, res: Response): void {
-  res.status(501).json({ message: `${req.method} ${req.originalUrl} not implemented yet` });
-}
-
 // GET /api/payroll/me — Authenticated — None -> Payroll[]
-router.get('/me', notImplemented);
+router.get('/me', requireAuth, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const result = await PayrollService.getMine(req.user!.employeeId);
+    res.status(200).json(result);
+  } catch (err) {
+    next(err);
+  }
+});
 
 // GET /api/payroll/:employeeId — HR Only — None -> Payroll[]
-router.get('/:employeeId', notImplemented);
+router.get('/:employeeId', requireAuth, requireRole('HR'), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const result = await PayrollService.getForEmployee(req.params.employeeId);
+    res.status(200).json(result);
+  } catch (err) {
+    next(err);
+  }
+});
 
 // PATCH /api/payroll/:employeeId — HR Only — UpdatePayrollRequest -> Payroll
-router.patch('/:employeeId', notImplemented);
+router.patch('/:employeeId', requireAuth, requireRole('HR'), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const updated = await PayrollService.update(req.params.employeeId, req.body as UpdatePayrollRequest);
+    res.status(200).json(updated);
+  } catch (err) {
+    next(err);
+  }
+});
 
 export default router;
