@@ -29,63 +29,35 @@ const mockAttendanceRecords: Attendance[] = [
   },
 ];
 
+/**
+ * Phase D3: Real network call to POST /api/attendance/check-in
+ */
 export async function checkIn(data?: CheckInRequest): Promise<Attendance> {
-  if (USE_MOCKS) {
-    const newRecord: Attendance = {
-      id: `att-${Date.now()}-mock`,
-      employeeId: 'emp-101-uuid-mock',
-      attDate: new Date().toISOString().split('T')[0],
-      checkIn: data?.timestamp || new Date().toISOString(),
-      status: 'Present',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-    return mockDelay(newRecord);
-  }
-
   return request<Attendance>('/api/attendance/check-in', {
     method: 'POST',
     body: JSON.stringify(data || {}),
   });
 }
 
+/**
+ * Phase D3: Real network call to POST /api/attendance/check-out
+ */
 export async function checkOut(data?: CheckOutRequest): Promise<Attendance> {
-  if (USE_MOCKS) {
-    const existing = mockAttendanceRecords[0];
-    const updated: Attendance = {
-      ...existing,
-      checkOut: data?.timestamp || new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-    return mockDelay(updated);
-  }
-
   return request<Attendance>('/api/attendance/check-out', {
     method: 'POST',
     body: JSON.stringify(data || {}),
   });
 }
 
+/**
+ * Phase D3: Real network call to GET /api/attendance/me
+ */
 export async function getMyAttendance(params?: {
   page?: number;
   limit?: number;
   startDate?: string;
   endDate?: string;
 }): Promise<Paginated<Attendance>> {
-  if (USE_MOCKS) {
-    let filtered = [...mockAttendanceRecords];
-    if (params?.startDate) {
-      filtered = filtered.filter((a) => a.attDate >= params.startDate!);
-    }
-    if (params?.endDate) {
-      filtered = filtered.filter((a) => a.attDate <= params.endDate!);
-    }
-    return mockDelay({
-      items: filtered,
-      total: filtered.length,
-    });
-  }
-
   const query = new URLSearchParams();
   if (params?.page) query.set('page', params.page.toString());
   if (params?.limit) query.set('limit', params.limit.toString());
