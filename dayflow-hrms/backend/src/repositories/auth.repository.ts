@@ -1,5 +1,5 @@
 import crypto from 'crypto';
-import { query, pool } from '../config/db';
+import { query, pool, withDbContext } from '../config/db';
 import { toTimestampString } from './date.util';
 import { DEFAULT_UNASSIGNED_DEPARTMENT, DEFAULT_EMPLOYEE_POSITION } from '../../../shared/types';
 import type { User, Role } from '../../../shared/types';
@@ -28,36 +28,44 @@ export function mapUserRow(row: UserRow): User {
 }
 
 export const AuthRepository = {
-  /** Returns the raw row (including password_hash) — callers must not leak it. */
+  /** Returns the raw row (including password_hash) — executed under SYSTEM_AUTH context. */
   async findUserByEmail(email: string): Promise<UserRow | null> {
-    const result = await query(`SELECT * FROM users WHERE email = $1`, [email]);
-    return result.rows[0] ?? null;
+    return withDbContext({ role: 'SYSTEM_AUTH' }, async (q) => {
+      const result = await q(`SELECT * FROM users WHERE email = $1`, [email]);
+      return result.rows[0] ?? null;
+    });
   },
 
   async findUserById(id: string): Promise<UserRow | null> {
-    const result = await query(`SELECT * FROM users WHERE id = $1`, [id]);
-    return result.rows[0] ?? null;
+    return withDbContext({ role: 'SYSTEM_AUTH' }, async (q) => {
+      const result = await q(`SELECT * FROM users WHERE id = $1`, [id]);
+      return result.rows[0] ?? null;
+    });
   },
 
   async findEmployeeIdByUserId(userId: string): Promise<string | null> {
-    const result = await query(`SELECT id FROM employees WHERE user_id = $1`, [userId]);
-    return result.rows[0]?.id ?? null;
+    return withDbContext({ role: 'SYSTEM_AUTH' }, async (q) => {
+      const result = await q(`SELECT id FROM employees WHERE user_id = $1`, [userId]);
+      return result.rows[0]?.id ?? null;
+    });
   },
 
   async markEmailVerified(userId: string): Promise<void> {
-    await query(`UPDATE users SET email_verified = TRUE WHERE id = $1`, [userId]);
+    return withDbContext({ role: 'SYSTEM_AUTH' }, async (q) => {
+      await q(`UPDATE users SET email_verified = TRUE WHERE id = $1`, [userId]);
+    });
   },
 
   async isEmployeeCodeTaken(employeeCode: string): Promise<boolean> {
-    const result = await query(`SELECT 1 FROM employees WHERE employee_code = $1 LIMIT 1`, [employeeCode]);
-    return (result.rowCount ?? 0) > 0;
+    return withDbContext({ role: 'SYSTEM_AUTH' }, async (q) => {
+      const result = await q(`SELECT 1 FROM employees WHERE employee_code = $1 LIMIT 1`, [employeeCode]);
+      return (result.rowCount ?? 0) > 0;
+    });
   },
 
   /**
    * Creates the users + employees rows for a self-registered EMPLOYEE in one
-   * transaction. Per CONTRACT.md §6.6, new employees are assigned the default
-   * `Unassigned` department and `'Employee'` position — HR fixes these later
-   * via PATCH /api/employees/:id.
+   * transaction under SYSTEM_AUTH context.
    */
   async createUserWithEmployee(input: {
     email: string;
@@ -66,13 +74,10 @@ export const AuthRepository = {
     lastName: string;
     employeeCode?: string;
   }): Promise<UserRow> {
-    const client = await pool.connect();
-    try {
-      await client.query('BEGIN');
-
+    return withDbContext({ role: 'SYSTEM_AUTH' }, async (q) => {
       const employeeCode = input.employeeCode ?? `EMP-${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
 
-      const userResult = await client.query(
+      const userResult = await q(
         `INSERT INTO users (email, password_hash, role, employee_code, email_verified)
          VALUES ($1, $2, 'EMPLOYEE', $3, FALSE)
          RETURNING *`,
@@ -80,7 +85,7 @@ export const AuthRepository = {
       );
       const userRow: UserRow = userResult.rows[0];
 
-      await client.query(
+      await q(
         `INSERT INTO employees
            (user_id, employee_code, first_name, last_name, email, department_id, department_name, position)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
@@ -96,13 +101,7 @@ export const AuthRepository = {
         ]
       );
 
-      await client.query('COMMIT');
       return userRow;
-    } catch (err) {
-      await client.query('ROLLBACK');
-      throw err;
-    } finally {
-      client.release();
-    }
+    });
   },
 };
