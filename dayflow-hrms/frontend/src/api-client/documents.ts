@@ -28,7 +28,7 @@ export async function getMyDocuments(): Promise<Document[]> {
   if (USE_MOCKS) {
     return mockDelay(mockDocuments);
   }
-  return request<Document[]>('/api/documents/me');
+  return request<Document[]>('/documents/me');
 }
 
 export async function getEmployeeDocuments(employeeId: string): Promise<Document[]> {
@@ -36,7 +36,7 @@ export async function getEmployeeDocuments(employeeId: string): Promise<Document
     const filtered = mockDocuments.filter((d) => d.employeeId === employeeId);
     return mockDelay(filtered.length ? filtered : mockDocuments);
   }
-  return request<Document[]>(`/api/documents/${employeeId}`);
+  return request<Document[]>(`/documents/${employeeId}`);
 }
 
 export async function createDocumentMetadata(data: CreateDocumentMetadataRequest): Promise<Document> {
@@ -54,7 +54,7 @@ export async function createDocumentMetadata(data: CreateDocumentMetadataRequest
     return mockDelay(newDoc);
   }
 
-  return request<Document>('/api/documents', {
+  return request<Document>('/documents', {
     method: 'POST',
     body: JSON.stringify(data),
   });

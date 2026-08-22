@@ -104,13 +104,13 @@ export async function run25EndpointAudit(): Promise<EndpointAuditResult[]> {
   results.push(await auditEndpoint(7, 'EMPLOYEES', 'GET', '/employees', hrToken, undefined, [200]));
 
   // 8. PATCH /api/employees/:id
-  results.push(await auditEndpoint(8, 'EMPLOYEES', 'PATCH', '/employees/33333333-3333-3333-3333-111111111111', hrToken, { position: 'Staff Engineer' }, [200]));
+  results.push(await auditEndpoint(8, 'EMPLOYEES', 'PATCH', '/employees/33333333-3333-3333-3333-222222222222', hrToken, { position: 'Staff Engineer' }, [200]));
 
   // 9. GET /api/employees/recent-activity
   results.push(await auditEndpoint(9, 'EMPLOYEES', 'GET', '/employees/recent-activity', empToken, undefined, [200]));
 
   // 10. GET /api/employees/switch-context/:id
-  results.push(await auditEndpoint(10, 'EMPLOYEES', 'GET', '/employees/switch-context/33333333-3333-3333-3333-111111111111', hrToken, undefined, [200]));
+  results.push(await auditEndpoint(10, 'EMPLOYEES', 'GET', '/employees/switch-context/33333333-3333-3333-3333-222222222222', hrToken, undefined, [200]));
 
   // --- DEPARTMENTS MODULE (1 endpoint) ---
   // 11. GET /api/departments
@@ -132,7 +132,7 @@ export async function run25EndpointAudit(): Promise<EndpointAuditResult[]> {
   results.push(await auditEndpoint(14, 'LEAVE', 'GET', '/leave-requests', hrToken, undefined, [200]));
 
   // 15. PATCH /api/leave-requests/:id
-  results.push(await auditEndpoint(15, 'LEAVE', 'PATCH', '/leave-requests/non-existent-id', hrToken, { status: 'Approved' }, [200, 404]));
+  results.push(await auditEndpoint(15, 'LEAVE', 'PATCH', '/leave-requests/00000000-0000-0000-0000-000000000000', hrToken, { status: 'Approved' }, [200, 404]));
 
   // --- ATTENDANCE MODULE (4 endpoints) ---
   // 16. POST /api/attendance/check-in
@@ -152,21 +152,21 @@ export async function run25EndpointAudit(): Promise<EndpointAuditResult[]> {
   results.push(await auditEndpoint(20, 'PAYROLL', 'GET', '/payroll/me', empToken, undefined, [200]));
 
   // 21. GET /api/payroll/:employeeId
-  results.push(await auditEndpoint(21, 'PAYROLL', 'GET', '/payroll/33333333-3333-3333-3333-111111111111', hrToken, undefined, [200]));
+  results.push(await auditEndpoint(21, 'PAYROLL', 'GET', '/payroll/33333333-3333-3333-3333-222222222222', hrToken, undefined, [200]));
 
   // 22. PATCH /api/payroll/:employeeId
-  results.push(await auditEndpoint(22, 'PAYROLL', 'PATCH', '/payroll/33333333-3333-3333-3333-111111111111', hrToken, { baseSalary: 8500 }, [200]));
+  results.push(await auditEndpoint(22, 'PAYROLL', 'PATCH', '/payroll/33333333-3333-3333-3333-222222222222', hrToken, { baseSalary: 8500 }, [200]));
 
   // --- DOCUMENTS MODULE (3 endpoints) ---
   // 23. GET /api/documents/me
   results.push(await auditEndpoint(23, 'DOCUMENTS', 'GET', '/documents/me', empToken, undefined, [200]));
 
   // 24. GET /api/documents/:employeeId
-  results.push(await auditEndpoint(24, 'DOCUMENTS', 'GET', '/documents/33333333-3333-3333-3333-111111111111', hrToken, undefined, [200]));
+  results.push(await auditEndpoint(24, 'DOCUMENTS', 'GET', '/documents/33333333-3333-3333-3333-222222222222', hrToken, undefined, [200]));
 
   // 25. POST /api/documents
   results.push(await auditEndpoint(25, 'DOCUMENTS', 'POST', '/documents', hrToken, {
-    employeeId: '33333333-3333-3333-3333-111111111111',
+    employeeId: '33333333-3333-3333-3333-222222222222',
     title: 'Audit Document',
     documentType: 'Policy',
     fileUrl: 'https://example.com/docs/policy.pdf',

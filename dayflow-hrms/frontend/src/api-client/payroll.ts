@@ -36,7 +36,7 @@ export async function getMyPayroll(): Promise<Payroll[]> {
   if (USE_MOCKS) {
     return mockDelay(mockPayrollRecords);
   }
-  return request<Payroll[]>('/api/payroll/me');
+  return request<Payroll[]>('/payroll/me');
 }
 
 export async function getEmployeePayroll(employeeId: string): Promise<Payroll[]> {
@@ -44,7 +44,7 @@ export async function getEmployeePayroll(employeeId: string): Promise<Payroll[]>
     const filtered = mockPayrollRecords.filter((p) => p.employeeId === employeeId);
     return mockDelay(filtered.length ? filtered : mockPayrollRecords);
   }
-  return request<Payroll[]>(`/api/payroll/${employeeId}`);
+  return request<Payroll[]>(`/payroll/${employeeId}`);
 }
 
 export async function updatePayroll(employeeId: string, data: UpdatePayrollRequest): Promise<Payroll> {
@@ -66,7 +66,7 @@ export async function updatePayroll(employeeId: string, data: UpdatePayrollReque
     return mockDelay(updated);
   }
 
-  return request<Payroll>(`/api/payroll/${employeeId}`, {
+  return request<Payroll>(`/payroll/${employeeId}`, {
     method: 'PATCH',
     body: JSON.stringify(data),
   });

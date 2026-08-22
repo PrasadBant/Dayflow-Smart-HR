@@ -16,12 +16,12 @@
  */
 
 import { login, signup, verifyEmail, resendVerification } from '../../frontend/src/api-client/auth';
-import { getMyProfile, updateMyProfile } from '../../frontend/src/api-client/employees';
+import { getProfile, updateMyProfile } from '../../frontend/src/api-client/employees';
 import { getDepartments } from '../../frontend/src/api-client/departments';
 import { createLeaveRequest, getMyLeaveRequests } from '../../frontend/src/api-client/leave';
 import { checkIn, checkOut, getMyAttendance } from '../../frontend/src/api-client/attendance';
 import { getMyPayroll } from '../../frontend/src/api-client/payroll';
-import { getMyDocuments, uploadDocumentMetadata } from '../../frontend/src/api-client/documents';
+import { getMyDocuments, createDocumentMetadata } from '../../frontend/src/api-client/documents';
 import { setAuthToken, ApiClientError, getBaseApiUrl } from '../../frontend/src/api-client/client';
 
 export interface MasterRegressionReport {
@@ -115,7 +115,7 @@ export async function runMasterRegressionSuite(): Promise<MasterRegressionReport
 
   // STEP 4: PROFILE
   console.log('\n--- Step 4: Profile Management (GET & PATCH /api/employees/me) ---');
-  const profile = await getMyProfile();
+  const profile = await getProfile();
   if (profile && profile.email === 'john.doe@dayflow.com') {
     const updatedProfile = await updateMyProfile({ phone: '+1-555-0199' });
     if (updatedProfile && updatedProfile.phone === '+1-555-0199') {
@@ -155,9 +155,9 @@ export async function runMasterRegressionSuite(): Promise<MasterRegressionReport
   }
 
   const myLeaves = await getMyLeaveRequests();
-  if (Array.isArray(myLeaves)) {
+  if (Array.isArray(myLeaves.items)) {
     report.leave = true;
-    console.log(`✓ Leave GET /me Passed! Total requests: ${myLeaves.length}`);
+    console.log(`✓ Leave GET /me Passed! Total requests: ${myLeaves.items.length}`);
   }
 
   // STEP 7: ATTENDANCE TRACKING
@@ -181,9 +181,9 @@ export async function runMasterRegressionSuite(): Promise<MasterRegressionReport
   }
 
   const myAttendance = await getMyAttendance();
-  if (Array.isArray(myAttendance)) {
+  if (Array.isArray(myAttendance.items)) {
     report.attendance = true;
-    console.log(`✓ Attendance GET /me Passed! Records count: ${myAttendance.length}`);
+    console.log(`✓ Attendance GET /me Passed! Records count: ${myAttendance.items.length}`);
   }
 
   // STEP 8: PAYROLL
@@ -206,8 +206,8 @@ export async function runMasterRegressionSuite(): Promise<MasterRegressionReport
   const hrLogin = await login({ email: 'hr.admin@dayflow.com', password: 'Password123!' });
   if (hrLogin && hrLogin.token) {
     setAuthToken(hrLogin.token);
-    const newDoc = await uploadDocumentMetadata({
-      employeeId: '33333333-3333-3333-3333-111111111111',
+    const newDoc = await createDocumentMetadata({
+      employeeId: '33333333-3333-3333-3333-222222222222',
       title: 'Master E2E Policy Document',
       documentType: 'Policy',
       fileUrl: 'https://example.com/docs/master-policy.pdf',
@@ -224,12 +224,12 @@ export async function runMasterRegressionSuite(): Promise<MasterRegressionReport
   const baseUrl = getBaseApiUrl().replace(/\/$/, '');
 
   // Attempt to access cross-employee documents directly
-  const crossDocRes = await fetch(`${baseUrl}/documents/33333333-3333-3333-3333-111111111111`, {
+  const crossDocRes = await fetch(`${baseUrl}/documents/33333333-3333-3333-3333-222222222222`, {
     headers: { Authorization: `Bearer ${loginRes.token}` },
   });
 
   // Attempt to access cross-employee payroll directly
-  const crossPayRes = await fetch(`${baseUrl}/payroll/33333333-3333-3333-3333-111111111111`, {
+  const crossPayRes = await fetch(`${baseUrl}/payroll/33333333-3333-3333-3333-222222222222`, {
     headers: { Authorization: `Bearer ${loginRes.token}` },
   });
 

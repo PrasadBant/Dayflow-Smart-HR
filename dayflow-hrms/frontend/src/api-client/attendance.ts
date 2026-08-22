@@ -33,7 +33,7 @@ const mockAttendanceRecords: Attendance[] = [
  * Phase D3: Real network call to POST /api/attendance/check-in
  */
 export async function checkIn(data?: CheckInRequest): Promise<Attendance> {
-  return request<Attendance>('/api/attendance/check-in', {
+  return request<Attendance>('/attendance/check-in', {
     method: 'POST',
     body: JSON.stringify(data || {}),
   });
@@ -43,7 +43,7 @@ export async function checkIn(data?: CheckInRequest): Promise<Attendance> {
  * Phase D3: Real network call to POST /api/attendance/check-out
  */
 export async function checkOut(data?: CheckOutRequest): Promise<Attendance> {
-  return request<Attendance>('/api/attendance/check-out', {
+  return request<Attendance>('/attendance/check-out', {
     method: 'POST',
     body: JSON.stringify(data || {}),
   });
@@ -65,7 +65,7 @@ export async function getMyAttendance(params?: {
   if (params?.endDate) query.set('endDate', params.endDate);
 
   const queryString = query.toString() ? `?${query.toString()}` : '';
-  return request<Paginated<Attendance>>(`/api/attendance/me${queryString}`);
+  return request<Paginated<Attendance>>(`/attendance/me${queryString}`);
 }
 
 export async function getAllAttendance(params?: {
@@ -95,5 +95,5 @@ export async function getAllAttendance(params?: {
   if (params?.date) query.set('date', params.date);
 
   const queryString = query.toString() ? `?${query.toString()}` : '';
-  return request<Paginated<Attendance>>(`/api/attendance${queryString}`);
+  return request<Paginated<Attendance>>(`/attendance${queryString}`);
 }

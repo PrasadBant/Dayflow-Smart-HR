@@ -42,7 +42,7 @@ export async function signup(data: SignupRequest): Promise<{ user: User }> {
     return mockDelay({ user: newUser });
   }
 
-  return request<{ user: User }>('/api/auth/signup', {
+  return request<{ user: User }>('/auth/signup', {
     method: 'POST',
     body: JSON.stringify(data),
   });
@@ -57,7 +57,7 @@ export async function login(data: LoginRequest): Promise<AuthResponse> {
     return mockDelay({ token, user });
   }
 
-  const response = await request<AuthResponse>('/api/auth/login', {
+  const response = await request<AuthResponse>('/auth/login', {
     method: 'POST',
     body: JSON.stringify(data),
   });
@@ -72,7 +72,7 @@ export async function verifyEmail(data: VerifyEmailRequest): Promise<{ message: 
     return mockDelay({ message: 'Email verified successfully' });
   }
 
-  return request<{ message: string }>('/api/auth/verify-email', {
+  return request<{ message: string }>('/auth/verify-email', {
     method: 'POST',
     body: JSON.stringify(data),
   });
@@ -83,7 +83,7 @@ export async function resendVerification(data: ResendVerificationRequest): Promi
     return mockDelay({ message: 'Verification email sent' });
   }
 
-  return request<{ message: string }>('/api/auth/resend-verification', {
+  return request<{ message: string }>('/auth/resend-verification', {
     method: 'POST',
     body: JSON.stringify(data),
   });
