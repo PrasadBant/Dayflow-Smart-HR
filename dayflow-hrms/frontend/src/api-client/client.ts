@@ -1,4 +1,4 @@
-import type { ErrorCode, ApiErrorDetail, ApiError } from '../../../../shared/types';
+import type { ErrorCode, ApiErrorDetail, ApiError } from '@shared/types';
 
 /**
  * Global mock mode flag.

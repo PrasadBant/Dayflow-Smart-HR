@@ -4,7 +4,7 @@ import type {
   DecideLeaveRequest,
   Paginated,
   LeaveStatus,
-} from '../../../../shared/types';
+} from '@shared/types';
 import { request, mockDelay, USE_MOCKS } from './client';
 
 const mockLeaveRequests: LeaveRequest[] = [

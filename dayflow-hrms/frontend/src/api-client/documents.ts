@@ -1,4 +1,4 @@
-import type { Document, CreateDocumentMetadataRequest } from '../../../../shared/types';
+import type { Document, CreateDocumentMetadataRequest } from '@shared/types';
 import { request, mockDelay, USE_MOCKS } from './client';
 
 const mockDocuments: Document[] = [
