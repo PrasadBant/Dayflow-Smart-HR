@@ -16,7 +16,7 @@
 import { runAuthFlowE2ETest } from '../tests/e2e/auth-flow.test';
 import { runLeaveSliceE2ETest } from '../tests/e2e/leave-slice.test';
 import { runAttendanceSliceE2ETest } from '../tests/e2e/attendance-slice.test';
-import { runIdorSecurityE2ETest } from '../tests/e2e/idor.test';
+import { runIDORE2ETest } from '../tests/e2e/idor.test';
 import { run25EndpointAudit } from '../tests/e2e/25-endpoint-audit.test';
 import { runMasterRegressionSuite } from '../tests/e2e/master-regression.test';
 
@@ -63,7 +63,7 @@ export async function runAllE2ETestSuites(): Promise<boolean> {
   // Suite 4: idor
   console.log('\n>>> [4/6] Running IDOR Security E2E Suite...');
   try {
-    await runIdorSecurityE2ETest();
+    await runIDORE2ETest();
     results.push({ name: 'idor', status: 'PASS' });
   } catch (err: any) {
     results.push({ name: 'idor', status: 'FAIL', error: err.message });

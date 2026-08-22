@@ -39,7 +39,7 @@ const mockLeaveRequests: LeaveRequest[] = [
  * Phase D2: Real network call to POST /api/leave-requests
  */
 export async function createLeaveRequest(data: CreateLeaveRequest): Promise<LeaveRequest> {
-  return request<LeaveRequest>('/api/leave-requests', {
+  return request<LeaveRequest>('/leave-requests', {
     method: 'POST',
     body: JSON.stringify(data),
   });
@@ -59,7 +59,7 @@ export async function getMyLeaveRequests(params?: {
   if (params?.status) query.set('status', params.status);
 
   const queryString = query.toString() ? `?${query.toString()}` : '';
-  return request<Paginated<LeaveRequest>>(`/api/leave-requests/me${queryString}`);
+  return request<Paginated<LeaveRequest>>(`/leave-requests/me${queryString}`);
 }
 
 export async function getAllLeaveRequests(params?: {
@@ -89,7 +89,7 @@ export async function getAllLeaveRequests(params?: {
   if (params?.employeeId) query.set('employeeId', params.employeeId);
 
   const queryString = query.toString() ? `?${query.toString()}` : '';
-  return request<Paginated<LeaveRequest>>(`/api/leave-requests${queryString}`);
+  return request<Paginated<LeaveRequest>>(`/leave-requests${queryString}`);
 }
 
 export async function decideLeaveRequest(id: string, data: DecideLeaveRequest): Promise<LeaveRequest> {
@@ -106,7 +106,7 @@ export async function decideLeaveRequest(id: string, data: DecideLeaveRequest): 
     return mockDelay(updated);
   }
 
-  return request<LeaveRequest>(`/api/leave-requests/${id}`, {
+  return request<LeaveRequest>(`/leave-requests/${id}`, {
     method: 'PATCH',
     body: JSON.stringify(data),
   });

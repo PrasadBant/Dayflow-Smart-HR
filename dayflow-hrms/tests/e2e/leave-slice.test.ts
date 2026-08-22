@@ -79,8 +79,16 @@ export async function runLeaveSliceE2ETest(): Promise<{
 
   // Step 3: Create a Leave Request (POST /api/leave-requests)
   const uniqueId = Date.now().toString().slice(-4);
-  const safeStartDate = `2027-11-01`;
-  const safeEndDate = `2027-11-05`;
+  const futureOffsetDays = 100 + (Math.floor(Date.now() / 1000) % 50000);
+  const startD = new Date(Date.now() + futureOffsetDays * 86400000);
+  const endD = new Date(startD.getTime() + 4 * 86400000);
+  const overlapD = new Date(startD.getTime() + 2 * 86400000);
+  const overlapEndD = new Date(startD.getTime() + 6 * 86400000);
+
+  const safeStartDate = startD.toISOString().split('T')[0];
+  const safeEndDate = endD.toISOString().split('T')[0];
+  const overlapStartDate = overlapD.toISOString().split('T')[0];
+  const overlapEndDate = overlapEndD.toISOString().split('T')[0];
 
   const newLeaveDto: CreateLeaveRequest = {
     leaveType: 'Paid',
@@ -126,8 +134,8 @@ export async function runLeaveSliceE2ETest(): Promise<{
   console.log('[6/7] Testing BR-1 Leave Overlap Prevention (expecting HTTP 409 LEAVE_OVERLAP)...');
   const overlappingDto: CreateLeaveRequest = {
     leaveType: 'Sick',
-    startDate: `2027-11-03`, // Overlaps 2027-11-01 to 2027-11-05
-    endDate: `2027-11-07`,
+    startDate: overlapStartDate,
+    endDate: overlapEndDate,
     reason: 'Overlapping Leave Attempt',
   };
 

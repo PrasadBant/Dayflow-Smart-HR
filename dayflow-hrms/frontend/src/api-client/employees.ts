@@ -67,7 +67,7 @@ export async function getProfile(): Promise<Employee> {
   if (USE_MOCKS) {
     return mockDelay(mockEmployee);
   }
-  return request<Employee>('/api/employees/me');
+  return request<Employee>('/employees/me');
 }
 
 export async function updateMyProfile(data: UpdateProfileRequest): Promise<Employee> {
@@ -79,7 +79,7 @@ export async function updateMyProfile(data: UpdateProfileRequest): Promise<Emplo
     };
     return mockDelay(updated);
   }
-  return request<Employee>('/api/employees/me', {
+  return request<Employee>('/employees/me', {
     method: 'PATCH',
     body: JSON.stringify(data),
   });
@@ -118,7 +118,7 @@ export async function getEmployees(params?: {
   if (params?.departmentId) query.set('departmentId', params.departmentId);
 
   const queryString = query.toString() ? `?${query.toString()}` : '';
-  return request<Paginated<Employee>>(`/api/employees${queryString}`);
+  return request<Paginated<Employee>>(`/employees${queryString}`);
 }
 
 export async function updateEmployee(id: string, data: UpdateProfileRequest): Promise<Employee> {
@@ -131,7 +131,7 @@ export async function updateEmployee(id: string, data: UpdateProfileRequest): Pr
     };
     return mockDelay(updated);
   }
-  return request<Employee>(`/api/employees/${id}`, {
+  return request<Employee>(`/employees/${id}`, {
     method: 'PATCH',
     body: JSON.stringify(data),
   });
@@ -141,7 +141,7 @@ export async function getRecentActivity(): Promise<ActivityItem[]> {
   if (USE_MOCKS) {
     return mockDelay(mockActivityItems);
   }
-  return request<ActivityItem[]>('/api/employees/recent-activity');
+  return request<ActivityItem[]>('/employees/recent-activity');
 }
 
 export async function switchEmployeeContext(id: string): Promise<EmployeeContext> {
@@ -205,5 +205,5 @@ export async function switchEmployeeContext(id: string): Promise<EmployeeContext
     };
     return mockDelay(context);
   }
-  return request<EmployeeContext>(`/api/employees/switch-context/${id}`);
+  return request<EmployeeContext>(`/employees/switch-context/${id}`);
 }

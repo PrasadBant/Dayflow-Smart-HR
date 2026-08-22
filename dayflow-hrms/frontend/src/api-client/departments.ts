@@ -38,5 +38,5 @@ export async function getDepartments(): Promise<Department[]> {
   if (USE_MOCKS) {
     return mockDelay(mockDepartments);
   }
-  return request<Department[]>('/api/departments');
+  return request<Department[]>('/departments');
 }
