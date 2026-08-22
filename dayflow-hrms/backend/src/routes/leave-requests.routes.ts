@@ -4,11 +4,13 @@
  * Types: LeaveRequest, CreateLeaveRequest, DecideLeaveRequest, Paginated<LeaveRequest>
  * (see shared/types.ts)
  *
- * STUB PHASE (B1): route skeleton only. Every handler returns 501 Not Implemented.
- * Not wired into app.ts yet; no auth/config imports (see PHASE B1 fallback).
- * NOTE: PHASE B2 will implement POST / and GET /me for real (the P0 vertical slice).
+ * PHASE B2: POST / and GET /me are live (the P0 vertical slice).
+ * GET / (HR list) and PATCH /:id (HR decide) remain 501 stubs until PHASE B4.
  */
-import { Router, Request, Response } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
+import { requireAuth } from '../auth/middleware';
+import { LeaveService } from '../services/leave.service';
+import type { CreateLeaveRequest } from '../../../shared/types';
 
 const router = Router();
 
@@ -17,10 +19,29 @@ function notImplemented(req: Request, res: Response): void {
 }
 
 // POST /api/leave-requests — Authenticated — CreateLeaveRequest -> LeaveRequest (201)
-router.post('/', notImplemented);
+router.post('/', requireAuth, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const employeeId = req.user!.employeeId;
+    const dto = req.body as CreateLeaveRequest;
+    const created = await LeaveService.create(employeeId, dto);
+    res.status(201).json(created);
+  } catch (err) {
+    next(err);
+  }
+});
 
 // GET /api/leave-requests/me — Authenticated — Query params -> Paginated<LeaveRequest>
-router.get('/me', notImplemented);
+router.get('/me', requireAuth, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const employeeId = req.user!.employeeId;
+    const page = Math.max(1, parseInt(String(req.query.page ?? '1'), 10) || 1);
+    const pageSize = Math.min(100, Math.max(1, parseInt(String(req.query.pageSize ?? '20'), 10) || 20));
+    const result = await LeaveService.listOwn(employeeId, page, pageSize);
+    res.status(200).json(result);
+  } catch (err) {
+    next(err);
+  }
+});
 
 // GET /api/leave-requests — HR Only — Query params -> Paginated<LeaveRequest>
 router.get('/', notImplemented);
