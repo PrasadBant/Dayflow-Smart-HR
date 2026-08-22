@@ -40,6 +40,16 @@ export interface Department {
   updatedAt: string;
 }
 
+// Default Department & Position for initial self-registration signup
+export const DEFAULT_UNASSIGNED_DEPARTMENT = {
+  id: '00000000-0000-0000-0000-000000000000',
+  name: 'Unassigned',
+  code: 'DEPT-UNASSIGNED',
+} as const;
+
+export const DEFAULT_EMPLOYEE_POSITION = 'Employee';
+
+
 // Employee Entity
 export interface Employee {
   id: string;

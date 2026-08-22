@@ -22,6 +22,7 @@
 -- 1. SEED DEPARTMENTS
 ----------------------------------------------------
 INSERT INTO departments (id, name, code) VALUES
+('00000000-0000-0000-0000-000000000000', 'Unassigned', 'DEPT-UNASSIGNED'),
 ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'Engineering', 'DEPT-ENG'),
 ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', 'Human Resources', 'DEPT-HR')
 ON CONFLICT (id) DO NOTHING;
