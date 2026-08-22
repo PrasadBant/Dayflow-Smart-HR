@@ -241,7 +241,7 @@ BEGIN
     RAISE NOTICE '--- 7. Testing updated_at Trigger (update_updated_at_column) ---';
 
     SELECT updated_at INTO start_time FROM employees WHERE id = test_emp_id;
-    
+
     -- Perform update
     UPDATE employees SET first_name = 'UpdatedTest' WHERE id = test_emp_id;
 

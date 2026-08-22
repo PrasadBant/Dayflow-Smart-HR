@@ -1,4 +1,5 @@
 import { query } from '../config/db';
+import { toDateString, toTimestampString } from './date.util';
 import type { LeaveRequest, LeaveType, LeaveStatus } from '../../../shared/types';
 
 /**
@@ -20,14 +21,6 @@ interface LeaveRequestRow {
   decision_comments: string | null;
   created_at: string | Date;
   updated_at: string | Date;
-}
-
-function toDateString(value: string | Date): string {
-  return value instanceof Date ? value.toISOString().slice(0, 10) : value;
-}
-
-function toTimestampString(value: string | Date): string {
-  return value instanceof Date ? value.toISOString() : value;
 }
 
 function mapRow(row: LeaveRequestRow): LeaveRequest {

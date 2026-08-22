@@ -1,7 +1,7 @@
 import React from 'react';
 import { Clock, CheckCircle2, XCircle } from 'lucide-react';
 import { Badge } from './Badge';
-import type { LeaveStatus } from '../../../../../shared/types';
+import type { LeaveStatus } from '@shared/types';
 
 export interface LeaveStatusBadgeProps {
   status: LeaveStatus;

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import type { Role } from '../../../../../shared/types';
+import type { Role } from '@shared/types';
 import { ShieldAlert } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '../primitives/Card';
 import { Button } from '../primitives/Button';
