@@ -30,12 +30,12 @@ ON CONFLICT (id) DO NOTHING;
 ----------------------------------------------------
 -- 2. SEED USERS
 -- Passwords hashed with bcrypt (10 rounds): Password123!
--- Hash: $2b$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeg6Lruj3vjPGga31lW
+-- Hash: $2b$10$eH3RUQPbitVrqShMyUwYrun3/Y48JqdwOYNx5lPSjueKo74ZpxlsG
 ----------------------------------------------------
 INSERT INTO users (id, email, password_hash, role, employee_code, email_verified) VALUES
-('11111111-1111-1111-1111-111111111111', 'hr.admin@dayflow.com', '$2b$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeg6Lruj3vjPGga31lW', 'HR', 'EMP001', TRUE),
-('22222222-2222-2222-2222-111111111111', 'john.doe@dayflow.com', '$2b$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeg6Lruj3vjPGga31lW', 'EMPLOYEE', 'EMP002', TRUE),
-('33333333-3333-3333-3333-111111111111', 'jane.smith@dayflow.com', '$2b$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeg6Lruj3vjPGga31lW', 'EMPLOYEE', 'EMP003', TRUE)
+('11111111-1111-1111-1111-111111111111', 'hr.admin@dayflow.com', '$2b$10$eH3RUQPbitVrqShMyUwYrun3/Y48JqdwOYNx5lPSjueKo74ZpxlsG', 'HR', 'EMP001', TRUE),
+('22222222-2222-2222-2222-111111111111', 'john.doe@dayflow.com', '$2b$10$eH3RUQPbitVrqShMyUwYrun3/Y48JqdwOYNx5lPSjueKo74ZpxlsG', 'EMPLOYEE', 'EMP002', TRUE),
+('33333333-3333-3333-3333-111111111111', 'jane.smith@dayflow.com', '$2b$10$eH3RUQPbitVrqShMyUwYrun3/Y48JqdwOYNx5lPSjueKo74ZpxlsG', 'EMPLOYEE', 'EMP003', TRUE)
 ON CONFLICT (id) DO NOTHING;
 
 ----------------------------------------------------
