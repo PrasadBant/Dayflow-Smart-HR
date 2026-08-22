@@ -76,9 +76,13 @@ export async function run25EndpointAudit(): Promise<EndpointAuditResult[]> {
     }
   }
 
-  // --- AUTH MODULE (4 endpoints) ---
-  // 1. POST /api/auth/signup (Known 501 blocker)
-  results.push(await auditEndpoint(1, 'AUTH', 'POST', '/auth/signup', null, { email: 't@d.com', password: 'P' }, [201]));
+  // 1. POST /api/auth/signup (Real Signup)
+  results.push(await auditEndpoint(1, 'AUTH', 'POST', '/auth/signup', null, {
+    email: `audit.${Date.now()}@dayflow.com`,
+    password: 'Password123!',
+    firstName: 'Audit',
+    lastName: 'User',
+  }, [201]));
 
   // 2. POST /api/auth/login
   results.push(await auditEndpoint(2, 'AUTH', 'POST', '/auth/login', null, { email: 'john.doe@dayflow.com', password: 'Password123!' }, [200]));
