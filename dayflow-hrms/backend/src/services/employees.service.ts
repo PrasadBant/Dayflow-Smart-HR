@@ -14,7 +14,19 @@ import type {
 /** CONTRACT.md §7.3: employee self-edit is limited to these three fields. */
 const SELF_EDITABLE_FIELDS = ['address', 'phone', 'profilePictureUrl'] as const;
 
+/** Runtime guard: `req.body` is `any` at the boundary — a client can send any JSON shape. */
+function assertOptionalString(value: unknown, field: string): void {
+  if (value !== undefined && (typeof value !== 'string' || value.trim() === '')) {
+    throw new AppError('VALIDATION_ERROR', `${field} must be a non-empty string`, 400, [
+      { field, message: 'Must be a non-empty string' },
+    ]);
+  }
+}
+
 function pickSelfEditable(dto: UpdateProfileRequest): EmployeeUpdateFields {
+  for (const key of SELF_EDITABLE_FIELDS) {
+    assertOptionalString(dto[key], key);
+  }
   const fields: EmployeeUpdateFields = {};
   for (const key of SELF_EDITABLE_FIELDS) {
     if (dto[key] !== undefined) fields[key] = dto[key];
@@ -48,6 +60,14 @@ export const EmployeesService = {
 
   /** HR full-profile update — all fields allowed, including department/position. */
   async updateById(id: string, dto: UpdateProfileRequest): Promise<Employee> {
+    assertOptionalString(dto.firstName, 'firstName');
+    assertOptionalString(dto.lastName, 'lastName');
+    assertOptionalString(dto.position, 'position');
+    assertOptionalString(dto.phone, 'phone');
+    assertOptionalString(dto.address, 'address');
+    assertOptionalString(dto.profilePictureUrl, 'profilePictureUrl');
+    if (dto.departmentId !== undefined) assertOptionalString(dto.departmentId, 'departmentId');
+
     const fields: EmployeeUpdateFields = {
       firstName: dto.firstName,
       lastName: dto.lastName,

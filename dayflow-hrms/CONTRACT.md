@@ -133,6 +133,8 @@ All endpoints are mounted under `/api`.
 3. **Password Security**: Hashed via bcrypt (10 salt rounds). Passwords must be at least 8 characters long and contain both letters and numbers.
 4. **Email Verification**: Unverified users (`emailVerified = false`) cannot log in and will receive `403 EMAIL_NOT_VERIFIED`.
 5. **Signup Role Lock**: Public signup (`POST /api/auth/signup`) MUST NOT accept a `role` field in `SignupRequest`. The backend forces `role = 'EMPLOYEE'`. Self-registration as HR is strictly prohibited.
+6. **Signup Department & Position Defaulting**: Self-registered employees (`POST /api/auth/signup`) provide personal details (`email`, `password`, `firstName`, `lastName`, optional `employeeCode`). Upon signup, the backend assigns the default department `Unassigned` (`DEFAULT_UNASSIGNED_DEPARTMENT`, `id: '00000000-0000-0000-0000-000000000000'`, `name: 'Unassigned'`) and default position `'Employee'`. HR administrators can subsequently update an employee's department and position via `PATCH /api/employees/:id`.
+
 
 ---
 
