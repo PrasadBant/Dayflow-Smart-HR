@@ -205,7 +205,7 @@ BEGIN
     END IF;
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 DROP TRIGGER IF EXISTS trigger_check_leave_attendance_consistency ON attendance;
 CREATE TRIGGER trigger_check_leave_attendance_consistency
