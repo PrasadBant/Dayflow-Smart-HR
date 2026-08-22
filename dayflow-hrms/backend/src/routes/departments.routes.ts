@@ -3,18 +3,22 @@
  *
  * Types: Department (see shared/types.ts)
  *
- * STUB PHASE (B1): route skeleton only. Every handler returns 501 Not Implemented.
- * Not wired into app.ts yet; no auth/config imports (see PHASE B1 fallback).
+ * PHASE B4: live.
  */
-import { Router, Request, Response } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
+import { requireAuth } from '../auth/middleware';
+import { DepartmentsService } from '../services/departments.service';
 
 const router = Router();
 
-function notImplemented(req: Request, res: Response): void {
-  res.status(501).json({ message: `${req.method} ${req.originalUrl} not implemented yet` });
-}
-
 // GET /api/departments — Authenticated — None -> Department[]
-router.get('/', notImplemented);
+router.get('/', requireAuth, async (_req: Request, res: Response, next: NextFunction) => {
+  try {
+    const departments = await DepartmentsService.list();
+    res.status(200).json(departments);
+  } catch (err) {
+    next(err);
+  }
+});
 
 export default router;
