@@ -1,4 +1,4 @@
-import type { Department } from '../../../../shared/types';
+import type { Department } from '@shared/types';
 import { request, mockDelay, USE_MOCKS } from './client';
 
 const mockDepartments: Department[] = [

@@ -3,7 +3,7 @@ import type {
   CheckInRequest,
   CheckOutRequest,
   Paginated,
-} from '../../../../shared/types';
+} from '@shared/types';
 import { request, mockDelay, USE_MOCKS } from './client';
 
 const mockAttendanceRecords: Attendance[] = [

@@ -4,7 +4,7 @@ import type {
   Paginated,
   ActivityItem,
   EmployeeContext,
-} from '../../../../shared/types';
+} from '@shared/types';
 import { request, mockDelay, USE_MOCKS } from './client';
 
 export const mockEmployee: Employee = {

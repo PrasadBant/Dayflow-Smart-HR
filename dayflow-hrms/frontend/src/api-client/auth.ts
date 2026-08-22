@@ -5,7 +5,7 @@ import type {
   ResendVerificationRequest,
   AuthResponse,
   User,
-} from '../../../../shared/types';
+} from '@shared/types';
 import { request, mockDelay, USE_MOCKS, setAuthToken } from './client';
 
 const mockUser: User = {

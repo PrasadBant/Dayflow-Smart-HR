@@ -1,4 +1,4 @@
-import type { Payroll, UpdatePayrollRequest } from '../../../../shared/types';
+import type { Payroll, UpdatePayrollRequest } from '@shared/types';
 import { request, mockDelay, USE_MOCKS } from './client';
 
 const mockPayrollRecords: Payroll[] = [
