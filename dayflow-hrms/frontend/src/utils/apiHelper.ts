@@ -9,7 +9,7 @@ import type {
   DecideLeaveRequest,
   Paginated,
   ApiError
-} from '../../../../shared/types';
+} from '@shared/types';
 
 export interface AuthApiClient {
   login?: (body: LoginRequest) => Promise<AuthResponse>;

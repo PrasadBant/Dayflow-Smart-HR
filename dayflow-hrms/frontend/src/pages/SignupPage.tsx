@@ -5,7 +5,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../co
 import { FormField, Input } from '../components/primitives/FormField';
 import { Button } from '../components/primitives/Button';
 import { ErrorBanner } from '../components/primitives/ErrorBanner';
-import type { SignupRequest, User as UserType } from '../../../../shared/types';
+import type { SignupRequest, User as UserType } from '@shared/types';
 import { parseApiError, type AuthApiClient } from '../utils/apiHelper';
 
 export const SignupPage: React.FC = () => {

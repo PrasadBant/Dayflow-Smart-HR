@@ -23,7 +23,7 @@ import type {
   CreateLeaveRequest,
   DecideLeaveRequest,
   Paginated
-} from '../../../../shared/types';
+} from '@shared/types';
 import { parseApiError, type LeaveApiClient } from '../utils/apiHelper';
 
 export const LeavePage: React.FC = () => {

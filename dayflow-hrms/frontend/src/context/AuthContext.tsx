@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import type { User, Employee, Role } from '../../../../shared/types';
+import type { User, Employee, Role } from '@shared/types';
 
 interface AuthContextType {
   user: User | null;
