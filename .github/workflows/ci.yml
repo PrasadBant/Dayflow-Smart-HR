@@ -7,8 +7,11 @@ on:
     branches: [ main ]
 
 jobs:
-  build-and-test:
+  backend:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: dayflow-hrms/backend
 
     steps:
       - name: Checkout Code
@@ -18,33 +21,41 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: dayflow-hrms/backend/package-lock.json
 
       - name: Install Dependencies
-        run: |
-          if [ -f package.json ]; then
-            npm ci || npm install
-          elif [ -f dayflow-hrms/package.json ]; then
-            cd dayflow-hrms && (npm ci || npm install)
-          else
-            echo "No package.json found yet."
-          fi
+        run: npm ci
 
       - name: Type Check & Build
-        run: |
-          if [ -f package.json ]; then
-            npm run build --if-present
-          elif [ -f dayflow-hrms/package.json ]; then
-            cd dayflow-hrms && npm run build --if-present
-          else
-            echo "No package.json found for build."
-          fi
+        run: npm run build
 
-      - name: Run Tests
+      - name: Run Unit/Security Tests
         run: |
-          if [ -f package.json ]; then
-            npm test --if-present
-          elif [ -f dayflow-hrms/package.json ]; then
-            cd dayflow-hrms && npm test --if-present
-          else
-            echo "No package.json found for tests."
-          fi
+          npx ts-node tests/auth.test.ts
+          npx ts-node tests/signup.test.ts
+          npx ts-node tests/leave.overlap.test.ts
+          npx ts-node tests/authz-idor.test.ts
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: dayflow-hrms/frontend
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: dayflow-hrms/frontend/package-lock.json
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Type Check & Build
+        run: npm run build
