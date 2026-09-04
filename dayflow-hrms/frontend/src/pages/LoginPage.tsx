@@ -6,8 +6,10 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../co
 import { FormField, Input } from '../components/primitives/FormField';
 import { Button } from '../components/primitives/Button';
 import { ErrorBanner } from '../components/primitives/ErrorBanner';
-import type { LoginRequest, AuthResponse } from '@shared/types';
-import { parseApiError, type AuthApiClient } from '../utils/apiHelper';
+import type { LoginRequest } from '@shared/types';
+import { login as loginRequest } from '../api-client/auth';
+import { getProfile } from '../api-client/employees';
+import { parseApiError } from '../utils/apiHelper';
 
 export const LoginPage: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -33,30 +35,22 @@ export const LoginPage: React.FC = () => {
 
     try {
       const payload: LoginRequest = { email, password };
-      let res: AuthResponse;
+      const res = await loginRequest(payload);
 
-      const authModulePath = '../api-client/auth';
-      const apiClient = (await import(/* @vite-ignore */ authModulePath).catch(() => null)) as AuthApiClient | null;
-
-      if (apiClient && apiClient.login) {
-        res = await apiClient.login(payload);
-      } else {
-        // Contract-compliant development fallback when D's network client is mocked/unwired
-        res = {
-          token: 'jwt-session-token-demo',
-          user: {
-            id: 'u-demo-1',
-            email,
-            role: email.toLowerCase().includes('hr') ? 'HR' : 'EMPLOYEE',
-            employeeCode: 'EMP001',
-            emailVerified: true,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          },
-        };
+      // Fetch the employee profile right away so AuthContext.employee (used
+      // by the sidebar greeting, dashboard welcome banner, etc.) is
+      // populated from the first render instead of staying null until a
+      // page refresh restores it from localStorage. loginRequest() already
+      // stored the token, so this call is authenticated.
+      let employee = null;
+      try {
+        employee = await getProfile();
+      } catch {
+        // Non-fatal: the session is still valid without the employee
+        // profile: the UI degrades to showing the email instead of a name.
       }
 
-      login(res.token, res.user);
+      login(res.token, res.user, employee);
       navigate('/dashboard');
     } catch (err: unknown) {
       const parsed = parseApiError(err);

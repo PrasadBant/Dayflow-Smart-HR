@@ -6,7 +6,8 @@ import { FormField, Input } from '../components/primitives/FormField';
 import { Button } from '../components/primitives/Button';
 import { ErrorBanner } from '../components/primitives/ErrorBanner';
 import type { VerifyEmailRequest } from '@shared/types';
-import { parseApiError, type AuthApiClient } from '../utils/apiHelper';
+import { verifyEmail as verifyEmailRequest } from '../api-client/auth';
+import { parseApiError } from '../utils/apiHelper';
 
 export const VerifyEmailPage: React.FC = () => {
   const location = useLocation();
@@ -32,13 +33,7 @@ export const VerifyEmailPage: React.FC = () => {
 
     try {
       const payload: VerifyEmailRequest = { token: code };
-
-      const authModulePath = '../api-client/auth';
-      const apiClient = (await import(/* @vite-ignore */ authModulePath).catch(() => null)) as AuthApiClient | null;
-
-      if (apiClient && apiClient.verifyEmail) {
-        await apiClient.verifyEmail(payload);
-      }
+      await verifyEmailRequest(payload);
 
       setIsSuccess(true);
       setTimeout(() => {

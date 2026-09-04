@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Users, Search, RefreshCw, Eye, X } from 'lucide-react';
+import { Users, Search, RefreshCw, Eye, X, Pencil, Save } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/primitives/Card';
 import { FormField, Input, Select } from '../components/primitives/FormField';
 import { Button } from '../components/primitives/Button';
@@ -7,8 +7,8 @@ import { Badge } from '../components/primitives/Badge';
 import { LeaveStatusBadge } from '../components/primitives/LeaveStatusBadge';
 import { Skeleton } from '../components/primitives/Skeleton';
 import { ErrorBanner } from '../components/primitives/ErrorBanner';
-import type { Employee, Department, EmployeeContext, Paginated } from '@shared/types';
-import { getEmployees, switchEmployeeContext } from '../api-client/employees';
+import type { Employee, Department, EmployeeContext, Paginated, UpdateProfileRequest } from '@shared/types';
+import { getEmployees, switchEmployeeContext, updateEmployee } from '../api-client/employees';
 import { getDepartments } from '../api-client/departments';
 import { parseApiError } from '../utils/apiHelper';
 
@@ -23,6 +23,18 @@ export const EmployeesPage: React.FC = () => {
   const [context, setContext] = useState<EmployeeContext | null>(null);
   const [isLoadingContext, setIsLoadingContext] = useState(false);
   const [contextError, setContextError] = useState<string | null>(null);
+
+  // HR edit form — PATCH /api/employees/:id (full-profile update: name,
+  // position, department, contact fields). Distinct from ProfilePage's
+  // self-edit, which is restricted to phone/address/profilePictureUrl only.
+  const [isEditing, setIsEditing] = useState(false);
+  const [editFirstName, setEditFirstName] = useState('');
+  const [editLastName, setEditLastName] = useState('');
+  const [editPosition, setEditPosition] = useState('');
+  const [editDepartmentId, setEditDepartmentId] = useState('');
+  const [editPhone, setEditPhone] = useState('');
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setIsLoading(true);
@@ -57,6 +69,7 @@ export const EmployeesPage: React.FC = () => {
     setContextError(null);
     setIsLoadingContext(true);
     setContext(null);
+    setIsEditing(false);
     try {
       const ctx = await switchEmployeeContext(id);
       setContext(ctx);
@@ -64,6 +77,42 @@ export const EmployeesPage: React.FC = () => {
       setContextError(parseApiError(err).message);
     } finally {
       setIsLoadingContext(false);
+    }
+  };
+
+  const handleStartEdit = () => {
+    if (!context) return;
+    setEditFirstName(context.employee.firstName);
+    setEditLastName(context.employee.lastName);
+    setEditPosition(context.employee.position);
+    setEditDepartmentId(context.employee.departmentId);
+    setEditPhone(context.employee.phone || '');
+    setEditError(null);
+    setIsEditing(true);
+  };
+
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!context) return;
+    setEditError(null);
+    setIsSavingEdit(true);
+    try {
+      const payload: UpdateProfileRequest = {
+        firstName: editFirstName.trim(),
+        lastName: editLastName.trim(),
+        position: editPosition.trim(),
+        departmentId: editDepartmentId,
+        phone: editPhone.trim() || undefined,
+      };
+      const updated = await updateEmployee(context.employee.id, payload);
+      setContext({ ...context, employee: updated });
+      setIsEditing(false);
+      // Keep the directory list in sync with the edit (name/department/position columns).
+      setEmployees((prev) => prev.map((e) => (e.id === updated.id ? updated : e)));
+    } catch (err) {
+      setEditError(parseApiError(err).message);
+    } finally {
+      setIsSavingEdit(false);
     }
   };
 
@@ -157,7 +206,12 @@ export const EmployeesPage: React.FC = () => {
         <Card>
           <CardHeader style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <CardTitle>Employee Context</CardTitle>
-            <Button variant="ghost" size="sm" onClick={() => { setContext(null); setContextError(null); }} leftIcon={<X size={14} />}>Close</Button>
+            <div style={{ display: 'flex', gap: 'var(--space-sm)' }}>
+              {context && !isEditing && (
+                <Button variant="outline" size="sm" onClick={handleStartEdit} leftIcon={<Pencil size={14} />}>Edit</Button>
+              )}
+              <Button variant="ghost" size="sm" onClick={() => { setContext(null); setContextError(null); setIsEditing(false); }} leftIcon={<X size={14} />}>Close</Button>
+            </div>
           </CardHeader>
           <CardContent>
             {contextError && <ErrorBanner variant="error" message={contextError} />}
@@ -165,12 +219,43 @@ export const EmployeesPage: React.FC = () => {
               <Skeleton height="120px" />
             ) : context ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-lg)' }}>
-                <div>
-                  <div style={{ fontWeight: 700 }}>{context.employee.firstName} {context.employee.lastName}</div>
-                  <div style={{ fontSize: 'var(--text-sm)', color: 'var(--color-slate-600)' }}>
-                    {context.employee.email} · {context.employee.departmentName} · {context.employee.position}
+                {isEditing ? (
+                  <form onSubmit={handleSaveEdit}>
+                    {editError && <ErrorBanner variant="error" message={editError} />}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-md)' }}>
+                      <FormField label="First Name" required htmlFor="edit-first-name">
+                        <Input id="edit-first-name" value={editFirstName} onChange={(e) => setEditFirstName(e.target.value)} required />
+                      </FormField>
+                      <FormField label="Last Name" required htmlFor="edit-last-name">
+                        <Input id="edit-last-name" value={editLastName} onChange={(e) => setEditLastName(e.target.value)} required />
+                      </FormField>
+                    </div>
+                    <FormField label="Position" required htmlFor="edit-position">
+                      <Input id="edit-position" value={editPosition} onChange={(e) => setEditPosition(e.target.value)} required />
+                    </FormField>
+                    <FormField label="Department" required htmlFor="edit-department">
+                      <Select id="edit-department" value={editDepartmentId} onChange={(e) => setEditDepartmentId(e.target.value)} required>
+                        {departments.map((d) => (
+                          <option key={d.id} value={d.id}>{d.name}</option>
+                        ))}
+                      </Select>
+                    </FormField>
+                    <FormField label="Phone" htmlFor="edit-phone">
+                      <Input id="edit-phone" value={editPhone} onChange={(e) => setEditPhone(e.target.value)} />
+                    </FormField>
+                    <div style={{ display: 'flex', gap: 'var(--space-sm)' }}>
+                      <Button type="submit" variant="primary" size="sm" isLoading={isSavingEdit} leftIcon={<Save size={14} />}>Save Changes</Button>
+                      <Button type="button" variant="ghost" size="sm" onClick={() => setIsEditing(false)} disabled={isSavingEdit}>Cancel</Button>
+                    </div>
+                  </form>
+                ) : (
+                  <div>
+                    <div style={{ fontWeight: 700 }}>{context.employee.firstName} {context.employee.lastName}</div>
+                    <div style={{ fontSize: 'var(--text-sm)', color: 'var(--color-slate-600)' }}>
+                      {context.employee.email} · {context.employee.departmentName} · {context.employee.position}
+                    </div>
                   </div>
-                </div>
+                )}
 
                 <div>
                   <h5 style={{ fontSize: 'var(--text-sm)', fontWeight: 600, marginBottom: 'var(--space-sm)' }}>Recent Attendance</h5>

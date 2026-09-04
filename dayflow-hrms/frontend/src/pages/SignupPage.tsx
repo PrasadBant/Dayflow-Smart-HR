@@ -5,8 +5,9 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../co
 import { FormField, Input } from '../components/primitives/FormField';
 import { Button } from '../components/primitives/Button';
 import { ErrorBanner } from '../components/primitives/ErrorBanner';
-import type { SignupRequest, User as UserType } from '@shared/types';
-import { parseApiError, type AuthApiClient } from '../utils/apiHelper';
+import type { SignupRequest } from '@shared/types';
+import { signup as signupRequest } from '../api-client/auth';
+import { parseApiError } from '../utils/apiHelper';
 
 export const SignupPage: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -46,27 +47,7 @@ export const SignupPage: React.FC = () => {
         employeeCode: employeeCode || undefined,
       };
 
-      let res: { user: UserType };
-
-      const authModulePath = '../api-client/auth';
-      const apiClient = (await import(/* @vite-ignore */ authModulePath).catch(() => null)) as AuthApiClient | null;
-
-      if (apiClient && apiClient.signup) {
-        res = await apiClient.signup(payload);
-      } else {
-        // Fallback response matching exact contract ({ user }, NO token)
-        res = {
-          user: {
-            id: 'u-new-employee',
-            email,
-            role: 'EMPLOYEE',
-            employeeCode: employeeCode || 'EMP002',
-            emailVerified: false,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          },
-        };
-      }
+      const res = await signupRequest(payload);
 
       // Verified contract rule: Signup returns { user } with NO token.
       // Do NOT authenticate automatically. Redirect user to /verify-email.

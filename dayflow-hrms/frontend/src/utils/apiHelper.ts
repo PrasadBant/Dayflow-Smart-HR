@@ -1,28 +1,4 @@
-import type {
-  LoginRequest,
-  AuthResponse,
-  SignupRequest,
-  User,
-  VerifyEmailRequest,
-  CreateLeaveRequest,
-  LeaveRequest,
-  DecideLeaveRequest,
-  Paginated,
-  ApiError
-} from '@shared/types';
-
-export interface AuthApiClient {
-  login?: (body: LoginRequest) => Promise<AuthResponse>;
-  signup?: (body: SignupRequest) => Promise<{ user: User }>;
-  verifyEmail?: (body: VerifyEmailRequest) => Promise<{ message?: string } | void>;
-}
-
-export interface LeaveApiClient {
-  create?: (body: CreateLeaveRequest) => Promise<LeaveRequest>;
-  listMine?: () => Promise<Paginated<LeaveRequest> | LeaveRequest[]>;
-  listPending?: () => Promise<Paginated<LeaveRequest> | LeaveRequest[]>;
-  decide?: (id: string, body: DecideLeaveRequest) => Promise<LeaveRequest>;
-}
+import type { ApiError } from '@shared/types';
 
 export interface ParsedApiError {
   code?: string;

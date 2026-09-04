@@ -22,9 +22,14 @@ import type {
   LeaveRequest,
   CreateLeaveRequest,
   DecideLeaveRequest,
-  Paginated
 } from '@shared/types';
-import { parseApiError, type LeaveApiClient } from '../utils/apiHelper';
+import {
+  createLeaveRequest,
+  getMyLeaveRequests,
+  getAllLeaveRequests,
+  decideLeaveRequest,
+} from '../api-client/leave';
+import { parseApiError } from '../utils/apiHelper';
 
 export const LeavePage: React.FC = () => {
   const { user } = useAuth();
@@ -63,57 +68,15 @@ export const LeavePage: React.FC = () => {
     setIsLoadingMine(true);
     setMineError(null);
     try {
-      const leaveModulePath = '../api-client/leave';
-      const leaveClient = (await import(/* @vite-ignore */ leaveModulePath).catch(() => null)) as LeaveApiClient | null;
-
-      if (leaveClient && leaveClient.listMine) {
-        const res = await leaveClient.listMine();
-        if (Array.isArray(res)) {
-          setMyRequests(res);
-        } else if (res && 'items' in res && Array.isArray((res as Paginated<LeaveRequest>).items)) {
-          setMyRequests((res as Paginated<LeaveRequest>).items);
-        } else {
-          setMyRequests([]);
-        }
-      } else {
-        // Initial development mock state
-        setMyRequests([
-          {
-            id: 'lr-101',
-            employeeId: user?.employeeCode || 'emp-1',
-            leaveType: 'Paid',
-            startDate: '2026-09-01',
-            endDate: '2026-09-03',
-            reason: 'Annual family vacation leave',
-            status: 'Approved',
-            decidedBy: 'hr-admin',
-            decidedAt: '2026-08-20T10:00:00Z',
-            decisionComments: 'Approved. Enjoy your time off!',
-            createdAt: '2026-08-18T14:30:00Z',
-            updatedAt: '2026-08-20T10:00:00Z',
-          },
-          {
-            id: 'lr-102',
-            employeeId: user?.employeeCode || 'emp-1',
-            leaveType: 'Sick',
-            startDate: '2026-08-10',
-            endDate: '2026-08-11',
-            reason: 'Dental appointment & recovery',
-            status: 'Approved',
-            decidedBy: 'hr-admin',
-            decidedAt: '2026-08-09T16:00:00Z',
-            createdAt: '2026-08-09T09:00:00Z',
-            updatedAt: '2026-08-09T16:00:00Z',
-          },
-        ]);
-      }
+      const res = await getMyLeaveRequests();
+      setMyRequests(res.items);
     } catch (err: unknown) {
       const parsed = parseApiError(err);
       setMineError(parsed.message);
     } finally {
       setIsLoadingMine(false);
     }
-  }, [user?.employeeCode]);
+  }, []);
 
   // Load HR Pending Approvals Queue
   const fetchPendingRequests = useCallback(async () => {
@@ -121,45 +84,8 @@ export const LeavePage: React.FC = () => {
     setIsLoadingPending(true);
     setPendingError(null);
     try {
-      const leaveModulePath = '../api-client/leave';
-      const leaveClient = (await import(/* @vite-ignore */ leaveModulePath).catch(() => null)) as LeaveApiClient | null;
-
-      if (leaveClient && leaveClient.listPending) {
-        const res = await leaveClient.listPending();
-        if (Array.isArray(res)) {
-          setPendingRequests(res);
-        } else if (res && 'items' in res && Array.isArray((res as Paginated<LeaveRequest>).items)) {
-          setPendingRequests((res as Paginated<LeaveRequest>).items);
-        } else {
-          setPendingRequests([]);
-        }
-      } else {
-        // Initial HR queue mock state
-        setPendingRequests([
-          {
-            id: 'lr-201',
-            employeeId: 'EMP003',
-            leaveType: 'Paid',
-            startDate: '2026-09-10',
-            endDate: '2026-09-14',
-            reason: 'Personal time off for personal errands',
-            status: 'Pending',
-            createdAt: '2026-08-21T11:20:00Z',
-            updatedAt: '2026-08-21T11:20:00Z',
-          },
-          {
-            id: 'lr-202',
-            employeeId: 'EMP004',
-            leaveType: 'Sick',
-            startDate: '2026-08-25',
-            endDate: '2026-08-26',
-            reason: 'Flu symptoms & doctor recommendation',
-            status: 'Pending',
-            createdAt: '2026-08-22T08:15:00Z',
-            updatedAt: '2026-08-22T08:15:00Z',
-          },
-        ]);
-      }
+      const res = await getAllLeaveRequests({ status: 'Pending' });
+      setPendingRequests(res.items);
     } catch (err: unknown) {
       const parsed = parseApiError(err);
       setPendingError(parsed.message);
@@ -202,35 +128,18 @@ export const LeavePage: React.FC = () => {
         reason: reason.trim(),
       };
 
-      const leaveModulePath = '../api-client/leave';
-      const leaveClient = (await import(/* @vite-ignore */ leaveModulePath).catch(() => null)) as LeaveApiClient | null;
-
-      let newRequest: LeaveRequest;
-
-      if (leaveClient && leaveClient.create) {
-        newRequest = await leaveClient.create(payload);
-      } else {
-        // Fallback creation for dev preview
-        newRequest = {
-          id: `lr-${Date.now()}`,
-          employeeId: user?.employeeCode || 'EMP001',
-          leaveType,
-          startDate,
-          endDate,
-          reason: reason.trim(),
-          status: 'Pending',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        };
-      }
+      await createLeaveRequest(payload);
 
       setFormSuccess('Your leave application has been submitted successfully.');
       setReason('');
       setStartDate('');
       setEndDate('');
 
-      // Add to list and refresh
-      setMyRequests((prev) => [newRequest, ...prev]);
+      // Re-fetch from the server rather than splicing the response into
+      // local state — keeps the list as a true reflection of server state
+      // (e.g. correct id/createdAt, and consistent with every other
+      // mutation on this page/app calling its list's refresh afterward).
+      await fetchMyRequests();
     } catch (err: unknown) {
       const parsed = parseApiError(err);
       // P0 CRITICAL RULE: LEAVE_OVERLAP HTTP 409 must display FORM-LEVEL BANNER
@@ -256,12 +165,7 @@ export const LeavePage: React.FC = () => {
         decisionComments: decisionComments.trim() || undefined,
       };
 
-      const leaveModulePath = '../api-client/leave';
-      const leaveClient = (await import(/* @vite-ignore */ leaveModulePath).catch(() => null)) as LeaveApiClient | null;
-
-      if (leaveClient && leaveClient.decide) {
-        await leaveClient.decide(selectedRequest.id, payload);
-      }
+      await decideLeaveRequest(selectedRequest.id, payload);
 
       // Update local state
       setPendingRequests((prev) => prev.filter((r) => r.id !== selectedRequest.id));
