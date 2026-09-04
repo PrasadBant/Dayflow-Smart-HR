@@ -39,15 +39,23 @@ export async function runRLSSecurityTest(): Promise<void> {
     }
     console.log('✓ Unset DB context correctly returned 0 rows (RLS Enforced)');
 
-    // Fetch two real employee IDs using SYSTEM_AUTH context
+    // Fetch two real employee IDs using SYSTEM_AUTH context.
+    // set_config(..., true) is transaction-LOCAL (like SET LOCAL) — it only
+    // holds for the current transaction. Without an explicit BEGIN here,
+    // each query() call runs in its own auto-committed transaction, so the
+    // SYSTEM_AUTH role set below was gone by the time the SELECT ran, and
+    // RLS (correctly, but uselessly for this fetch) returned 0 rows instead
+    // of the seeded employees. BEGIN/COMMIT keeps the role setting in scope
+    // across both statements, same as every other block in this file.
+    await appClient.query('BEGIN');
     await appClient.query("SELECT set_config('app.current_role', 'SYSTEM_AUTH', true)");
     const empRes = await appClient.query('SELECT id FROM employees ORDER BY created_at ASC LIMIT 2');
+    await appClient.query('COMMIT');
     if (empRes.rows.length < 2) {
       throw new Error('Database does not have at least 2 seeded employees for testing');
     }
     const emp1Id = empRes.rows[0].id;
     const emp2Id = empRes.rows[1].id;
-    await appClient.query("SELECT set_config('app.current_role', '', true)");
 
     // Test 2: EMPLOYEE 1 context SELECT own employees record
     console.log(`[2/8] Testing EMPLOYEE 1 (${emp1Id}) SELECT own record...`);

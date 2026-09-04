@@ -28,7 +28,25 @@ export function getUseMocks(): boolean {
  */
 export const AUTH_TOKEN_STORAGE_KEY = 'dayflow_auth_token';
 
+/**
+ * Fallback for environments with no `localStorage` global at all (Node.js —
+ * this module is also imported directly by the ts-node E2E suites under
+ * tests/e2e/, outside any browser/DOM). `typeof localStorage` there throws
+ * a ReferenceError, not just an access error, so a bare try/catch around
+ * `localStorage.setItem(...)` still lost the token silently: the token was
+ * simply never stored anywhere, and every subsequent "authenticated" E2E
+ * request went out with no Authorization header. Detect availability once
+ * and keep an in-memory copy for that case; real browsers keep using
+ * localStorage so the reload-survives-refresh fix stays intact there.
+ */
+const hasLocalStorage = typeof localStorage !== 'undefined';
+let inMemoryAuthToken: string | null = null;
+
 export function setAuthToken(token: string | null): void {
+  if (!hasLocalStorage) {
+    inMemoryAuthToken = token;
+    return;
+  }
   try {
     if (token) {
       localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, token);
@@ -36,11 +54,14 @@ export function setAuthToken(token: string | null): void {
       localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
     }
   } catch {
-    // localStorage unavailable (private browsing, SSR, etc.) — degrade silently
+    // localStorage unavailable (private browsing, etc.) — degrade silently
   }
 }
 
 export function getAuthToken(): string | null {
+  if (!hasLocalStorage) {
+    return inMemoryAuthToken;
+  }
   try {
     return localStorage.getItem(AUTH_TOKEN_STORAGE_KEY);
   } catch {
@@ -72,17 +93,23 @@ export class ApiClientError extends Error {
 
 /**
  * Get Base API URL from environment variables or default to http://localhost:5000/api
+ *
+ * Deliberately reads only `process.env.VITE_API_URL` — never a literal
+ * `import.meta.env` reference. This module is dual-loaded: Vite bundles it
+ * for the browser, but tests/e2e/*.test.ts also `require()` it directly,
+ * unbundled, via ts-node (module: "CommonJS"). TypeScript's transpileOnly
+ * mode passes an `import.meta` token straight through to CommonJS output
+ * uninterpreted (a real ESM-only construct), which made Node's loader
+ * misdetect the whole file as an ES module on require() and crash before
+ * any guard around it could run — module format is decided at parse time,
+ * so a runtime `typeof import.meta !== 'undefined'` check never helped.
+ * vite.config.ts's `define` statically replaces `process.env.VITE_API_URL`
+ * with the build-time value for the browser bundle, so this single branch
+ * covers both runtimes without ever emitting that token.
  */
 export function getBaseApiUrl(): string {
   if (typeof process !== 'undefined' && process.env?.VITE_API_URL) {
     return process.env.VITE_API_URL;
-  }
-  try {
-    if (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_API_URL) {
-      return (import.meta as any).env.VITE_API_URL;
-    }
-  } catch {
-    // Ignore environment lookup errors in non-bundled contexts
   }
   return 'http://localhost:5000/api';
 }
