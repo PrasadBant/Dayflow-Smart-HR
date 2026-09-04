@@ -17,6 +17,7 @@ import { Button } from '../components/primitives/Button';
 import { LeaveStatusBadge } from '../components/primitives/LeaveStatusBadge';
 import { Skeleton } from '../components/primitives/Skeleton';
 import { ErrorBanner } from '../components/primitives/ErrorBanner';
+import { Pagination } from '../components/primitives/Pagination';
 import type {
   LeaveType,
   LeaveRequest,
@@ -30,6 +31,8 @@ import {
   decideLeaveRequest,
 } from '../api-client/leave';
 import { parseApiError } from '../utils/apiHelper';
+
+const PAGE_SIZE = 20;
 
 export const LeavePage: React.FC = () => {
   const { user } = useAuth();
@@ -49,11 +52,15 @@ export const LeavePage: React.FC = () => {
 
   // Employee List State
   const [myRequests, setMyRequests] = useState<LeaveRequest[]>([]);
+  const [myPage, setMyPage] = useState(1);
+  const [myTotal, setMyTotal] = useState(0);
   const [isLoadingMine, setIsLoadingMine] = useState(true);
   const [mineError, setMineError] = useState<string | null>(null);
 
   // HR Queue State
   const [pendingRequests, setPendingRequests] = useState<LeaveRequest[]>([]);
+  const [pendingPage, setPendingPage] = useState(1);
+  const [pendingTotal, setPendingTotal] = useState(0);
   const [isLoadingPending, setIsLoadingPending] = useState(false);
   const [pendingError, setPendingError] = useState<string | null>(null);
 
@@ -64,12 +71,14 @@ export const LeavePage: React.FC = () => {
   const [decisionError, setDecisionError] = useState<string | null>(null);
 
   // Load Employee's own leave requests
-  const fetchMyRequests = useCallback(async () => {
+  const fetchMyRequests = useCallback(async (targetPage: number = 1) => {
     setIsLoadingMine(true);
     setMineError(null);
     try {
-      const res = await getMyLeaveRequests();
+      const res = await getMyLeaveRequests({ page: targetPage, limit: PAGE_SIZE });
       setMyRequests(res.items);
+      setMyTotal(res.total);
+      setMyPage(targetPage);
     } catch (err: unknown) {
       const parsed = parseApiError(err);
       setMineError(parsed.message);
@@ -79,13 +88,15 @@ export const LeavePage: React.FC = () => {
   }, []);
 
   // Load HR Pending Approvals Queue
-  const fetchPendingRequests = useCallback(async () => {
+  const fetchPendingRequests = useCallback(async (targetPage: number = 1) => {
     if (!isHR) return;
     setIsLoadingPending(true);
     setPendingError(null);
     try {
-      const res = await getAllLeaveRequests({ status: 'Pending' });
+      const res = await getAllLeaveRequests({ status: 'Pending', page: targetPage, limit: PAGE_SIZE });
       setPendingRequests(res.items);
+      setPendingTotal(res.total);
+      setPendingPage(targetPage);
     } catch (err: unknown) {
       const parsed = parseApiError(err);
       setPendingError(parsed.message);
@@ -173,7 +184,7 @@ export const LeavePage: React.FC = () => {
       // Close modal
       setSelectedRequest(null);
       setDecisionComments('');
-      fetchPendingRequests();
+      fetchPendingRequests(pendingPage);
     } catch (err: unknown) {
       const parsed = parseApiError(err);
       setDecisionError(parsed.message || 'Failed to record decision. Please try again.');
@@ -214,14 +225,14 @@ export const LeavePage: React.FC = () => {
               <CardTitle style={{ color: 'var(--color-purple-900)' }}>HR Leave Approval Queue</CardTitle>
               <CardDescription>Review and process pending leave applications from employees</CardDescription>
             </div>
-            <Button variant="outline" size="sm" onClick={fetchPendingRequests} leftIcon={<RefreshCw size={14} />}>
+            <Button variant="outline" size="sm" onClick={() => fetchPendingRequests(pendingPage)} leftIcon={<RefreshCw size={14} />}>
               Refresh Queue
             </Button>
           </CardHeader>
 
           <CardContent>
             {pendingError && (
-              <ErrorBanner variant="error" message={pendingError} onRetry={fetchPendingRequests} />
+              <ErrorBanner variant="error" message={pendingError} onRetry={() => fetchPendingRequests(pendingPage)} />
             )}
 
             {isLoadingPending ? (
@@ -287,6 +298,9 @@ export const LeavePage: React.FC = () => {
                   </div>
                 ))}
               </div>
+            )}
+            {!isLoadingPending && pendingRequests.length > 0 && (
+              <Pagination page={pendingPage} pageSize={PAGE_SIZE} total={pendingTotal} onPageChange={fetchPendingRequests} />
             )}
           </CardContent>
         </Card>
@@ -355,7 +369,7 @@ export const LeavePage: React.FC = () => {
 
       {/* VIEW 2: EMPLOYEE LEAVE APPLICATION FORM & MY LEAVE LIST */}
       {(!isHR || activeTab === 'mine') && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 'var(--space-xl)', alignItems: 'start' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 'var(--space-xl)', alignItems: 'start' }}>
           {/* Apply Leave Form */}
           <Card>
             <CardHeader>
@@ -449,14 +463,14 @@ export const LeavePage: React.FC = () => {
                 <CardTitle>My Leave History</CardTitle>
                 <CardDescription>Track status and comments for submitted requests</CardDescription>
               </div>
-              <Button variant="ghost" size="sm" onClick={fetchMyRequests} leftIcon={<RefreshCw size={14} />}>
+              <Button variant="ghost" size="sm" onClick={() => fetchMyRequests(myPage)} leftIcon={<RefreshCw size={14} />}>
                 Refresh
               </Button>
             </CardHeader>
 
             <CardContent>
               {mineError && (
-                <ErrorBanner variant="error" message={mineError} onRetry={fetchMyRequests} />
+                <ErrorBanner variant="error" message={mineError} onRetry={() => fetchMyRequests(myPage)} />
               )}
 
               {isLoadingMine ? (
@@ -523,6 +537,9 @@ export const LeavePage: React.FC = () => {
                     </div>
                   ))}
                 </div>
+              )}
+              {!isLoadingMine && myRequests.length > 0 && (
+                <Pagination page={myPage} pageSize={PAGE_SIZE} total={myTotal} onPageChange={fetchMyRequests} />
               )}
             </CardContent>
           </Card>

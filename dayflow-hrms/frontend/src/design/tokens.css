@@ -148,3 +148,50 @@ a:hover {
 .animate-pulse {
   animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
+
+/* ==========================================================================
+   RESPONSIVE APP SHELL
+   The sidebar/main split below is real layout (fixed 260px sidebar + a
+   marginLeft: 260px main area), not something inline styles alone can adapt
+   per viewport — hence a real stylesheet + media query here, the one place
+   in the app that needs one. Below 768px the fixed sidebar is replaced by a
+   slide-in panel toggled by a hamburger button (AppShell.tsx), so the main
+   content gets the full viewport width instead of being squeezed into
+   (100vw - 260px), which is what caused every page to overflow horizontally
+   on phone-width viewports.
+   ========================================================================== */
+
+.app-hamburger {
+  display: none;
+}
+
+.app-sidebar-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.5);
+  z-index: 39;
+}
+
+@media (max-width: 768px) {
+  .app-sidebar {
+    transform: translateX(-100%);
+    transition: transform var(--transition-normal);
+  }
+
+  .app-sidebar.app-sidebar-open {
+    transform: translateX(0);
+  }
+
+  .app-main {
+    margin-left: 0 !important;
+  }
+
+  .app-hamburger {
+    display: inline-flex;
+  }
+
+  .app-sidebar-overlay {
+    display: block;
+  }
+}

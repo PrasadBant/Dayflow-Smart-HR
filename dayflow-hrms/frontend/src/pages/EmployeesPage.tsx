@@ -7,16 +7,21 @@ import { Badge } from '../components/primitives/Badge';
 import { LeaveStatusBadge } from '../components/primitives/LeaveStatusBadge';
 import { Skeleton } from '../components/primitives/Skeleton';
 import { ErrorBanner } from '../components/primitives/ErrorBanner';
+import { Pagination } from '../components/primitives/Pagination';
 import type { Employee, Department, EmployeeContext, Paginated, UpdateProfileRequest } from '@shared/types';
 import { getEmployees, switchEmployeeContext, updateEmployee } from '../api-client/employees';
 import { getDepartments } from '../api-client/departments';
 import { parseApiError } from '../utils/apiHelper';
+
+const PAGE_SIZE = 20;
 
 export const EmployeesPage: React.FC = () => {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [search, setSearch] = useState('');
   const [departmentId, setDepartmentId] = useState('');
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -36,16 +41,18 @@ export const EmployeesPage: React.FC = () => {
   const [isSavingEdit, setIsSavingEdit] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (targetPage: number) => {
     setIsLoading(true);
     setLoadError(null);
     try {
       const [empRes, deptRes] = await Promise.all([
-        getEmployees({ search: search || undefined, departmentId: departmentId || undefined }),
+        getEmployees({ page: targetPage, limit: PAGE_SIZE, search: search || undefined, departmentId: departmentId || undefined }),
         departments.length ? Promise.resolve(departments) : getDepartments(),
       ]);
       const items: Employee[] = Array.isArray(empRes) ? empRes : (empRes as Paginated<Employee>).items;
       setEmployees(items);
+      setTotal(Array.isArray(empRes) ? items.length : (empRes as Paginated<Employee>).total);
+      setPage(targetPage);
       if (!departments.length) setDepartments(deptRes as Department[]);
     } catch (err) {
       setLoadError(parseApiError(err).message);
@@ -56,13 +63,13 @@ export const EmployeesPage: React.FC = () => {
   }, [search, departmentId]);
 
   useEffect(() => {
-    load();
+    load(1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleFilterSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    load();
+    load(1); // filter changes always restart from page 1
   };
 
   const handleView = async (id: string) => {
@@ -127,7 +134,7 @@ export const EmployeesPage: React.FC = () => {
               <CardDescription>Manage employee profiles and context switching</CardDescription>
             </div>
           </div>
-          <Button variant="ghost" size="sm" onClick={load} leftIcon={<RefreshCw size={14} />}>Refresh</Button>
+          <Button variant="ghost" size="sm" onClick={() => load(page)} leftIcon={<RefreshCw size={14} />}>Refresh</Button>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleFilterSubmit} style={{ display: 'flex', gap: 'var(--space-md)', flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 'var(--space-lg)' }}>
@@ -158,7 +165,7 @@ export const EmployeesPage: React.FC = () => {
             <Button type="submit" variant="primary" style={{ marginBottom: 'var(--space-md)' }}>Apply Filters</Button>
           </form>
 
-          {loadError && <ErrorBanner variant="error" message={loadError} onRetry={load} />}
+          {loadError && <ErrorBanner variant="error" message={loadError} onRetry={() => load(page)} />}
 
           {isLoading ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-sm)' }}>
@@ -198,6 +205,9 @@ export const EmployeesPage: React.FC = () => {
                 </div>
               ))}
             </div>
+          )}
+          {!isLoading && employees.length > 0 && (
+            <Pagination page={page} pageSize={PAGE_SIZE} total={total} onPageChange={load} />
           )}
         </CardContent>
       </Card>

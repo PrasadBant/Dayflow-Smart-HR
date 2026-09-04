@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -9,7 +9,9 @@ import {
   Users,
   LogOut,
   FolderOpen,
-  Building2
+  Building2,
+  Menu,
+  X as CloseIcon,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { Badge } from '../primitives/Badge';
@@ -20,6 +22,13 @@ export const AppShell: React.FC = () => {
   const { user, employee, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
+
+  // Route changes (nav link clicks) should close the mobile slide-in panel;
+  // otherwise it would stay open covering the page after navigating.
+  useEffect(() => {
+    setIsMobileNavOpen(false);
+  }, [location.pathname]);
 
   const handleLogout = () => {
     logout();
@@ -52,8 +61,14 @@ export const AppShell: React.FC = () => {
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: 'var(--bg-page)' }}>
-      {/* Fixed Sidebar */}
+      {/* Mobile-only overlay behind the slide-in sidebar; tapping it closes the menu */}
+      {isMobileNavOpen && (
+        <div className="app-sidebar-overlay" onClick={() => setIsMobileNavOpen(false)} />
+      )}
+
+      {/* Fixed Sidebar (desktop) / Slide-in panel (mobile, see tokens.css) */}
       <aside
+        className={`app-sidebar${isMobileNavOpen ? ' app-sidebar-open' : ''}`}
         style={{
           width: '260px',
           backgroundColor: 'var(--bg-sidebar)',
@@ -91,7 +106,7 @@ export const AppShell: React.FC = () => {
           >
             <Building2 size={22} color="#ffffff" />
           </div>
-          <div>
+          <div style={{ flexGrow: 1 }}>
             <h2 style={{ fontSize: 'var(--text-lg)', fontWeight: 700, color: '#ffffff', letterSpacing: '-0.02em' }}>
               Dayflow
             </h2>
@@ -99,6 +114,14 @@ export const AppShell: React.FC = () => {
               HRMS Platform
             </span>
           </div>
+          <button
+            className="app-hamburger"
+            onClick={() => setIsMobileNavOpen(false)}
+            aria-label="Close menu"
+            style={{ background: 'none', border: 'none', color: '#ffffff', cursor: 'pointer', padding: '0.25rem' }}
+          >
+            <CloseIcon size={22} />
+          </button>
         </div>
 
         {/* Navigation Menu */}
@@ -204,7 +227,7 @@ export const AppShell: React.FC = () => {
       </aside>
 
       {/* Main Layout Area */}
-      <div style={{ flexGrow: 1, marginLeft: '260px', display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+      <div className="app-main" style={{ flexGrow: 1, marginLeft: '260px', display: 'flex', flexDirection: 'column', minWidth: 0 }}>
         {/* Topbar */}
         <header
           style={{
@@ -214,16 +237,26 @@ export const AppShell: React.FC = () => {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            padding: '0 var(--space-xl)',
+            padding: '0 var(--space-md)',
             position: 'sticky',
             top: 0,
             zIndex: 30,
             boxShadow: 'var(--shadow-sm)',
           }}
         >
-          <h1 style={{ fontSize: 'var(--text-xl)', fontWeight: 700, color: 'var(--color-slate-900)' }}>
-            {getCurrentTitle()}
-          </h1>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)', minWidth: 0 }}>
+            <button
+              className="app-hamburger"
+              onClick={() => setIsMobileNavOpen(true)}
+              aria-label="Open menu"
+              style={{ background: 'none', border: 'none', color: 'var(--color-slate-700)', cursor: 'pointer', padding: '0.25rem', flexShrink: 0 }}
+            >
+              <Menu size={22} />
+            </button>
+            <h1 style={{ fontSize: 'var(--text-xl)', fontWeight: 700, color: 'var(--color-slate-900)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {getCurrentTitle()}
+            </h1>
+          </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-md)' }}>
             <Badge variant={user?.role === 'HR' ? 'hr' : 'employee'}>

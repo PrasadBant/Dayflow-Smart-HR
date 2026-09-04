@@ -62,7 +62,7 @@ export const DocumentsPage: React.FC = () => {
   };
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 'var(--space-xl)', alignItems: 'start' }}>
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 'var(--space-xl)', alignItems: 'start' }}>
       <Card>
         <CardHeader>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>

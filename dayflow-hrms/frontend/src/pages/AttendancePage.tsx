@@ -5,9 +5,12 @@ import { Button } from '../components/primitives/Button';
 import { Badge } from '../components/primitives/Badge';
 import { Skeleton } from '../components/primitives/Skeleton';
 import { ErrorBanner } from '../components/primitives/ErrorBanner';
+import { Pagination } from '../components/primitives/Pagination';
 import type { Attendance, Paginated } from '@shared/types';
 import { checkIn, checkOut, getMyAttendance } from '../api-client/attendance';
 import { parseApiError } from '../utils/apiHelper';
+
+const PAGE_SIZE = 20;
 
 function statusVariant(status: Attendance['status']): 'approved' | 'pending' | 'rejected' | 'default' {
   if (status === 'Present') return 'approved';
@@ -18,6 +21,8 @@ function statusVariant(status: Attendance['status']): 'approved' | 'pending' | '
 
 export const AttendancePage: React.FC = () => {
   const [records, setRecords] = useState<Attendance[]>([]);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -25,13 +30,26 @@ export const AttendancePage: React.FC = () => {
   const [isCheckingIn, setIsCheckingIn] = useState(false);
   const [isCheckingOut, setIsCheckingOut] = useState(false);
 
-  const load = useCallback(async () => {
+  // Tracked separately from `records` (which reflects whichever history page
+  // is currently being browsed): the Check In/Out buttons must always
+  // reflect today's real status even while the user is looking at page 2+
+  // of older history, not "undefined" just because today's row isn't on
+  // the currently-viewed page.
+  const [todayRecord, setTodayRecord] = useState<Attendance | undefined>(undefined);
+
+  const load = useCallback(async (targetPage: number = 1) => {
     setIsLoading(true);
     setLoadError(null);
     try {
-      const res = await getMyAttendance();
+      const res = await getMyAttendance({ page: targetPage, limit: PAGE_SIZE });
       const items: Attendance[] = Array.isArray(res) ? res : (res as Paginated<Attendance>).items;
       setRecords(items);
+      setTotal(Array.isArray(res) ? items.length : (res as Paginated<Attendance>).total);
+      setPage(targetPage);
+      if (targetPage === 1) {
+        const today = new Date().toISOString().slice(0, 10);
+        setTodayRecord(items.find((r) => r.attDate === today));
+      }
     } catch (err) {
       setLoadError(parseApiError(err).message);
     } finally {
@@ -41,10 +59,8 @@ export const AttendancePage: React.FC = () => {
 
   useEffect(() => {
     load();
-  }, [load]);
-
-  const today = new Date().toISOString().slice(0, 10);
-  const todayRecord = records.find((r) => r.attDate === today);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleCheckIn = async () => {
     setActionError(null);
@@ -128,10 +144,10 @@ export const AttendancePage: React.FC = () => {
 
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-sm)' }}>
             <h4 style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--color-slate-700)' }}>Recent History</h4>
-            <Button variant="ghost" size="sm" onClick={load} leftIcon={<RefreshCw size={14} />}>Refresh</Button>
+            <Button variant="ghost" size="sm" onClick={() => load(page)} leftIcon={<RefreshCw size={14} />}>Refresh</Button>
           </div>
 
-          {loadError && <ErrorBanner variant="error" message={loadError} onRetry={load} />}
+          {loadError && <ErrorBanner variant="error" message={loadError} onRetry={() => load(page)} />}
 
           {isLoading ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-sm)' }}>
@@ -166,6 +182,9 @@ export const AttendancePage: React.FC = () => {
                 </div>
               ))}
             </div>
+          )}
+          {!isLoading && records.length > 0 && (
+            <Pagination page={page} pageSize={PAGE_SIZE} total={total} onPageChange={load} />
           )}
         </CardContent>
       </Card>
