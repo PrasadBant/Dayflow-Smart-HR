@@ -1,12 +1,7 @@
 /**
  * API Router aggregator — mounts every resource router at its CONTRACT.md §5 prefix.
  *
- * STUB PHASE (B1): all handlers currently return 501 Not Implemented.
- *
- * Not yet wired into an app.ts — A's backend/src/config bootstrap doesn't exist yet.
- * Once it does, mount this router under `/api`, e.g.:
- *   import apiRouter from './routes';
- *   app.use('/api', apiRouter);
+ * All routes are live; mounted under /api by app.ts (`app.use('/api', apiRouter)`).
  */
 import { Router } from 'express';
 import authRoutes from './auth.routes';
