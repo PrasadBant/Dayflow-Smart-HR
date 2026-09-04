@@ -14,14 +14,38 @@ export function getUseMocks(): boolean {
   return USE_MOCKS;
 }
 
-let authToken: string | null = null;
+/**
+ * Shared with AuthContext.tsx (imports this same constant) so there is
+ * exactly one place the session token lives: localStorage. Previously the
+ * token was a plain in-memory module variable, set only at the moment
+ * `login()` ran — a page reload wiped it (module state resets) while
+ * AuthContext's own restored React state still reported the user as
+ * logged in, so every request after a refresh silently lost its
+ * Authorization header and failed with 401 UNAUTHORIZED even though the
+ * UI looked authenticated. Reading/writing localStorage directly here
+ * makes the token dynamic and reload-safe by construction, with no manual
+ * sync step for callers to remember.
+ */
+export const AUTH_TOKEN_STORAGE_KEY = 'dayflow_auth_token';
 
 export function setAuthToken(token: string | null): void {
-  authToken = token;
+  try {
+    if (token) {
+      localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, token);
+    } else {
+      localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
+    }
+  } catch {
+    // localStorage unavailable (private browsing, SSR, etc.) — degrade silently
+  }
 }
 
 export function getAuthToken(): string | null {
-  return authToken;
+  try {
+    return localStorage.getItem(AUTH_TOKEN_STORAGE_KEY);
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -76,6 +100,7 @@ export async function request<T>(path: string, options: RequestInit = {}): Promi
     ...(options.headers as Record<string, string> || {}),
   };
 
+  const authToken = getAuthToken();
   if (authToken) {
     headers['Authorization'] = `Bearer ${authToken}`;
   }
@@ -86,6 +111,20 @@ export async function request<T>(path: string, options: RequestInit = {}): Promi
   });
 
   if (!response.ok) {
+    // 401 means the session token is missing, expired, or was signed by a
+    // backend instance we're no longer talking to (e.g. after a secret
+    // rotation) — never something the user can retry their way out of.
+    // Clear it here, once, at the single choke point every request passes
+    // through, and let AuthContext react (see the 'dayflow:auth-invalid'
+    // listener there) instead of leaving a dead token behind for every
+    // subsequent call to fail against individually.
+    if (response.status === 401) {
+      setAuthToken(null);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('dayflow:auth-invalid'));
+      }
+    }
+
     let errorEnvelope: ApiError | null = null;
     try {
       errorEnvelope = await response.json();
