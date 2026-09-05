@@ -3,6 +3,8 @@ import type {
   LoginRequest,
   VerifyEmailRequest,
   ResendVerificationRequest,
+  ForgotPasswordRequest,
+  ResetPasswordRequest,
   AuthResponse,
   User,
 } from '@shared/types';
@@ -35,6 +37,20 @@ export async function verifyEmail(data: VerifyEmailRequest): Promise<{ message: 
 
 export async function resendVerification(data: ResendVerificationRequest): Promise<{ message: string }> {
   return request<{ message: string }>('/auth/resend-verification', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function forgotPassword(data: ForgotPasswordRequest): Promise<{ message: string }> {
+  return request<{ message: string }>('/auth/forgot-password', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function resetPassword(data: ResetPasswordRequest): Promise<{ message: string }> {
+  return request<{ message: string }>('/auth/reset-password', {
     method: 'POST',
     body: JSON.stringify(data),
   });

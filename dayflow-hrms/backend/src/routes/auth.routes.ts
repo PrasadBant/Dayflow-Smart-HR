@@ -14,6 +14,8 @@ import type {
   LoginRequest,
   VerifyEmailRequest,
   ResendVerificationRequest,
+  ForgotPasswordRequest,
+  ResetPasswordRequest,
 } from '../../../shared/types';
 
 const router = Router();
@@ -52,6 +54,26 @@ router.post('/verify-email', async (req: Request, res: Response, next: NextFunct
 router.post('/resend-verification', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const result = await AuthService.resendVerification(req.body as ResendVerificationRequest);
+    res.status(200).json(result);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /api/auth/forgot-password — Public — ForgotPasswordRequest -> { message: string }
+router.post('/forgot-password', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const result = await AuthService.forgotPassword(req.body as ForgotPasswordRequest);
+    res.status(200).json(result);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /api/auth/reset-password — Public — ResetPasswordRequest -> { message: string }
+router.post('/reset-password', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const result = await AuthService.resetPassword(req.body as ResetPasswordRequest);
     res.status(200).json(result);
   } catch (err) {
     next(err);

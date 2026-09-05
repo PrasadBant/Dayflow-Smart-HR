@@ -204,7 +204,11 @@ export const AppShell: React.FC = () => {
               width: '38px',
               height: '38px',
               borderRadius: '50%',
-              backgroundColor: user?.role === 'HR' ? 'var(--color-purple-500)' : 'var(--color-primary-600)',
+              // purple-500 with white text was 3.95:1 — under WCAG AA's 4.5:1
+              // minimum for normal text (axe-core caught it on every
+              // authenticated page, since this avatar is in the shared
+              // AppShell). purple-700 keeps the same hue at ~5.9:1.
+              backgroundColor: user?.role === 'HR' ? 'var(--color-purple-700)' : 'var(--color-primary-600)',
               color: '#ffffff',
               display: 'flex',
               alignItems: 'center',

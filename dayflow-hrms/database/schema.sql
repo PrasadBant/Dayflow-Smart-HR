@@ -28,6 +28,12 @@ CREATE TABLE IF NOT EXISTS users (
     role VARCHAR(20) NOT NULL CHECK (role IN ('EMPLOYEE', 'HR')),
     employee_code VARCHAR(50) UNIQUE,
     email_verified BOOLEAN NOT NULL DEFAULT FALSE,
+    -- Password reset: store only a SHA-256 hash of the reset token (never
+    -- the token itself), so a database read alone can't be used to reset
+    -- an account. NULLed out again once the token is used or replaced, so
+    -- a stale row is never mistaken for an active request.
+    password_reset_token_hash VARCHAR(64),
+    password_reset_expires_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );

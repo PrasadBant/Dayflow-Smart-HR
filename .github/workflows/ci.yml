@@ -37,6 +37,17 @@ jobs:
           npx ts-node tests/leave.overlap.test.ts
           npx ts-node tests/authz-idor.test.ts
 
+      # Fails the build on a HIGH/CRITICAL advisory in a real dependency
+      # (direct or transitive). Pinned to --audit-level=high rather than
+      # the default (moderate) because two documented, currently-unfixable
+      # moderate advisories exist (express's transitive `qs`, and
+      # react-router pending a reviewed major-version migration) — blocking
+      # every build on those would make this gate a no-op people learn to
+      # ignore. A newly introduced high/critical vulnerability still fails
+      # the build, which is the actual point of this step.
+      - name: Dependency Security Audit
+        run: npm audit --audit-level=high
+
   frontend:
     runs-on: ubuntu-latest
     defaults:
@@ -59,3 +70,64 @@ jobs:
 
       - name: Type Check & Build
         run: npm run build
+
+      - name: Dependency Security Audit (production dependencies)
+        run: npm audit --audit-level=high --omit=dev
+
+  # Real end-to-end integration coverage against the actual Docker Compose
+  # stack this project ships (real Postgres + RLS, real Express backend,
+  # real nginx-served frontend) — not a substitute for the backend/frontend
+  # jobs above, which only prove each side builds and its own unit tests
+  # pass in isolation. This is the gate that would have caught, for
+  # example, the RLS-bypass defect found and fixed in an earlier hardening
+  # pass: something no unit test mocking the database could ever exercise.
+  e2e:
+    runs-on: ubuntu-latest
+    needs: [ backend, frontend ]
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # No .env file is provided here on purpose: docker-compose.yml's
+      # ${VAR:-default} fallbacks stand in, exactly as they would for a
+      # fresh `git clone && docker compose up` with no configuration —
+      # the scenario this gate is meant to protect.
+      - name: Build and start the full stack
+        run: docker compose up --build -d
+
+      - name: Wait for all services to report healthy
+        run: |
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:5000/health > /dev/null && curl -sf http://localhost:3000/ > /dev/null; then
+              echo "Stack is up.";
+              exit 0;
+            fi
+            sleep 2
+          done
+          echo "Stack did not become healthy in time." >&2
+          docker compose logs
+          exit 1
+
+      # Runs the same 7-suite runner used throughout local verification,
+      # from a container on the compose network so it reaches the real
+      # backend/database by their service names — no port-forwarding
+      # assumptions, no dependency on the runner's own Node version.
+      - name: Run full E2E suite against the live stack
+        run: |
+          docker run --rm --network dayflow-smart-hr_default \
+            -e DATABASE_URL="postgres://dayflow_app:dayflow_app_password@db:5432/dayflow_db" \
+            -e VITE_API_URL="http://backend:5000/api" \
+            -e JWT_SECRET="ci_e2e_client_env_not_used_for_signing_2026" \
+            -e FRONTEND_ORIGIN="http://localhost:3000" \
+            -e PORT="5000" \
+            -v "${{ github.workspace }}:/app" -w /app/dayflow-hrms node:20-alpine \
+            sh -c "npm run e2e"
+
+      - name: Show container logs on failure
+        if: failure()
+        run: docker compose logs
+
+      - name: Tear down
+        if: always()
+        run: docker compose down -v

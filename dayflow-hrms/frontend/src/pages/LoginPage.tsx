@@ -131,12 +131,18 @@ export const LoginPage: React.FC = () => {
               </div>
             </FormField>
 
+            <div style={{ textAlign: 'right', marginBottom: 'var(--space-md)' }}>
+              <Link to="/forgot-password" style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--color-primary-600)' }}>
+                Forgot password?
+              </Link>
+            </div>
+
             <Button
               type="submit"
               variant="primary"
               size="lg"
               isLoading={isLoading}
-              style={{ width: '100%', marginTop: 'var(--space-md)' }}
+              style={{ width: '100%' }}
               leftIcon={<LogIn size={18} />}
             >
               Sign In

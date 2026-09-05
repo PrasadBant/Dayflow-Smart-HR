@@ -63,6 +63,40 @@ export const AuthRepository = {
     });
   },
 
+  /** Stores only the SHA-256 hash of the reset token — see schema.sql. */
+  async setPasswordResetToken(userId: string, tokenHash: string, expiresAt: Date): Promise<void> {
+    return withDbContext({ role: 'SYSTEM_AUTH' }, async (q) => {
+      await q(
+        `UPDATE users SET password_reset_token_hash = $1, password_reset_expires_at = $2 WHERE id = $3`,
+        [tokenHash, expiresAt.toISOString(), userId]
+      );
+    });
+  },
+
+  /** Looks a user up by the hash of a presented reset token, honoring expiry server-side. */
+  async findUserByValidResetTokenHash(tokenHash: string): Promise<UserRow | null> {
+    return withDbContext({ role: 'SYSTEM_AUTH' }, async (q) => {
+      const result = await q(
+        `SELECT * FROM users
+         WHERE password_reset_token_hash = $1 AND password_reset_expires_at > NOW()`,
+        [tokenHash]
+      );
+      return result.rows[0] ?? null;
+    });
+  },
+
+  /** Sets a new password hash and clears the reset token in one statement — the token is single-use. */
+  async resetPassword(userId: string, newPasswordHash: string): Promise<void> {
+    return withDbContext({ role: 'SYSTEM_AUTH' }, async (q) => {
+      await q(
+        `UPDATE users
+         SET password_hash = $1, password_reset_token_hash = NULL, password_reset_expires_at = NULL
+         WHERE id = $2`,
+        [newPasswordHash, userId]
+      );
+    });
+  },
+
   /**
    * Creates the users + employees rows for a self-registered EMPLOYEE in one
    * transaction under SYSTEM_AUTH context.

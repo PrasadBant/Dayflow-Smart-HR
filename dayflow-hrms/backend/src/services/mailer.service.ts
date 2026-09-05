@@ -60,4 +60,28 @@ export const Mailer = {
       return { delivered: false };
     }
   },
+
+  async sendPasswordResetEmail(to: string, token: string): Promise<SendResult> {
+    const resetUrl = `${env.FRONTEND_ORIGIN}/reset-password?token=${encodeURIComponent(token)}`;
+
+    if (!transporter) {
+      console.log(`[Mailer] No SMTP configured — password reset link for ${to}: ${resetUrl}`);
+      return { delivered: false };
+    }
+
+    try {
+      await transporter.sendMail({
+        from: env.SMTP_FROM || 'no-reply@dayflow-hrms.local',
+        to,
+        subject: 'Reset your Dayflow HRMS password',
+        text: `A password reset was requested for your Dayflow HRMS account.\n\nReset it here:\n${resetUrl}\n\nThis link expires in 1 hour. If you didn't request this, you can ignore this email — your password will not change.`,
+        html: `<p>A password reset was requested for your Dayflow HRMS account.</p><p><a href="${resetUrl}">Reset your password</a></p><p>Or paste this link into your browser:<br>${resetUrl}</p><p>This link expires in 1 hour. If you didn't request this, you can ignore this email — your password will not change.</p>`,
+      });
+      return { delivered: true };
+    } catch (err) {
+      console.error(`[Mailer] SMTP send failed for ${to}:`, err instanceof Error ? err.message : err);
+      console.log(`[Mailer] Fallback password reset link for ${to}: ${resetUrl}`);
+      return { delivered: false };
+    }
+  },
 };

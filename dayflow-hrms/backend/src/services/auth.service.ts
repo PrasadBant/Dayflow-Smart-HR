@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import { AuthRepository, mapUserRow } from '../repositories/auth.repository';
 import { hashPassword, verifyPassword } from '../auth/hash';
@@ -10,12 +11,30 @@ import type {
   SignupRequest,
   VerifyEmailRequest,
   ResendVerificationRequest,
+  ForgotPasswordRequest,
+  ResetPasswordRequest,
   AuthResponse,
   User,
 } from '../../../shared/types';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PG_UNIQUE_VIOLATION = '23505';
+
+/** BR-7, shared between signup and password reset. */
+function assertPasswordStrength(password: string | undefined): asserts password is string {
+  if (!password || password.length < 8 || !/[a-zA-Z]/.test(password) || !/\d/.test(password)) {
+    throw new AppError('VALIDATION_ERROR', 'Password does not meet strength requirements', 400, [
+      { field: 'password', message: 'Must be 8+ characters with at least 1 letter and 1 number' },
+    ]);
+  }
+}
+
+const PASSWORD_RESET_EXPIRY_MS = 60 * 60 * 1000; // 1 hour
+
+/** The DB stores only this hash, never the raw token (see schema.sql). */
+function hashResetToken(rawToken: string): string {
+  return crypto.createHash('sha256').update(rawToken).digest('hex');
+}
 
 /**
  * Note: there is no schema column for storing an email-verification token, so
@@ -64,12 +83,7 @@ export const AuthService = {
         { field: 'email', message: 'Must be a valid email address' },
       ]);
     }
-    if (!dto.password || dto.password.length < 8 || !/[a-zA-Z]/.test(dto.password) || !/\d/.test(dto.password)) {
-      // BR-7
-      throw new AppError('VALIDATION_ERROR', 'Password does not meet strength requirements', 400, [
-        { field: 'password', message: 'Must be 8+ characters with at least 1 letter and 1 number' },
-      ]);
-    }
+    assertPasswordStrength(dto.password);
     if (!dto.firstName?.trim() || !dto.lastName?.trim()) {
       throw new AppError('VALIDATION_ERROR', 'First name and last name are required', 400);
     }
@@ -193,5 +207,67 @@ export const AuthService = {
             'If an account with that email exists and is not yet verified, a verification link was generated, ' +
             'but this server has no email delivery configured — check the server logs for the link.',
         };
+  },
+
+  /**
+   * Enumeration-safe by the same pattern as resendVerification: the response
+   * message depends only on whether SMTP is configured server-wide, never on
+   * whether the requested account exists. Rate-limited at the route layer
+   * (shared authRateLimiter on /api/auth/*), same as login/signup.
+   */
+  async forgotPassword(dto: ForgotPasswordRequest): Promise<{ message: string }> {
+    if (!dto.email || !EMAIL_RE.test(dto.email)) {
+      throw new AppError('VALIDATION_ERROR', 'A valid email is required', 400, [
+        { field: 'email', message: 'Must be a valid email address' },
+      ]);
+    }
+
+    const userRow = await AuthRepository.findUserByEmail(dto.email);
+    if (userRow) {
+      const rawToken = crypto.randomBytes(32).toString('hex');
+      const expiresAt = new Date(Date.now() + PASSWORD_RESET_EXPIRY_MS);
+      await AuthRepository.setPasswordResetToken(userRow.id, hashResetToken(rawToken), expiresAt);
+      await Mailer.sendPasswordResetEmail(dto.email, rawToken);
+    }
+
+    return Mailer.isConfigured()
+      ? { message: 'If an account with that email exists, a password reset link has been sent.' }
+      : {
+          message:
+            'If an account with that email exists, a password reset link was generated, ' +
+            'but this server has no email delivery configured — check the server logs for the link.',
+        };
+  },
+
+  /**
+   * The token is a random 32-byte value (never a JWT) specifically so it can
+   * be tracked server-side as single-use: resetPassword() clears the stored
+   * hash unconditionally on success, so a second attempt with the same
+   * (otherwise still-time-valid) token always fails, unlike a stateless JWT
+   * which would stay valid until its own expiry regardless of prior use.
+   */
+  async resetPassword(dto: ResetPasswordRequest): Promise<{ message: string }> {
+    if (!dto.token) {
+      throw new AppError('VALIDATION_ERROR', 'Reset token is required', 400);
+    }
+    assertPasswordStrength(dto.newPassword);
+
+    const userRow = await AuthRepository.findUserByValidResetTokenHash(hashResetToken(dto.token));
+    if (!userRow) {
+      throw new AppError('VALIDATION_ERROR', 'Invalid or expired reset token', 400, [
+        { field: 'token', message: 'This reset link is invalid or has expired' },
+      ]);
+    }
+
+    const newPasswordHash = await hashPassword(dto.newPassword);
+    await AuthRepository.resetPassword(userRow.id, newPasswordHash);
+
+    // Session invalidation note: sessions are stateless JWTs with an 8h
+    // expiry and no server-side revocation list — a token issued before
+    // this reset stays valid for the rest of its own lifetime. The reset
+    // token itself is what's guaranteed single-use here; revoking existing
+    // login sessions on password change would need a token-blocklist or a
+    // per-user token version, which doesn't exist in this codebase today.
+    return { message: 'Password reset successfully. You can now log in with your new password.' };
   },
 };
