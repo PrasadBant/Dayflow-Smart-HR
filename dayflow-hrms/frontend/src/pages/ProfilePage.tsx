@@ -123,7 +123,7 @@ export const ProfilePage: React.FC = () => {
               </FormField>
 
               <Button type="submit" variant="primary" isLoading={isSaving} leftIcon={<Save size={16} />}>
-                Save changes
+                Update profile
               </Button>
             </form>
           </Card>

@@ -53,7 +53,7 @@ export const PayrollPage: React.FC = () => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-xl)' }}>
-      <PageHeader title="Payroll" description="Your salary breakdown, bonuses, deductions, and payslip history." icon={<BadgeDollarSign size={20} color="var(--color-success-700)" />} />
+      <PageHeader title="Payroll" description="View your salary and payslip history." icon={<BadgeDollarSign size={20} color="var(--color-success-700)" />} />
 
       {loadError && <ErrorBanner variant="error" message={loadError} onRetry={load} />}
 

@@ -21,7 +21,9 @@ const VARIANT: Record<NonNullable<ButtonProps['variant']>, VariantColors> = {
   primary: { bg: 'var(--color-primary-600)', bgHover: 'var(--color-primary-700)', color: '#ffffff', border: 'transparent' },
   secondary: { bg: 'var(--color-slate-100)', bgHover: 'var(--color-slate-200)', color: 'var(--text-primary-color)', border: 'var(--border-default)' },
   outline: { bg: 'transparent', bgHover: 'var(--bg-sunken)', color: 'var(--text-secondary-color)', border: 'var(--border-strong)' },
-  danger: { bg: 'var(--color-danger-500)', bgHover: 'var(--color-danger-700)', color: '#ffffff', border: 'transparent' },
+  // danger-500 with white text measured 3.76:1 (axe) — under WCAG AA's 4.5:1.
+  // 700/800 clear it (~6.5:1) while keeping the same darken-on-hover pattern.
+  danger: { bg: 'var(--color-danger-700)', bgHover: 'var(--color-danger-800)', color: '#ffffff', border: 'transparent' },
   ghost: { bg: 'transparent', bgHover: 'var(--bg-sunken)', color: 'var(--text-secondary-color)', border: 'transparent' },
 };
 

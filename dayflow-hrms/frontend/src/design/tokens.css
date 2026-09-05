@@ -53,6 +53,10 @@
   --color-danger-100: #fee2e2;
   --color-danger-500: #ef4444;
   --color-danger-700: #b91c1c;
+  /* white-on-danger-500 measures 3.76:1 (axe caught it on the leave-decision
+     "Reject" button) — under WCAG AA's 4.5:1 for normal text. 700/800 are the
+     shades the danger Button variant now uses instead (white-on-700 is 6.5:1). */
+  --color-danger-800: #991b1b;
 
   --color-info-50: #f0f9ff;
   --color-info-100: #e0f2fe;

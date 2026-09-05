@@ -65,7 +65,7 @@ export const DocumentsPage: React.FC = () => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-xl)' }}>
-      <PageHeader title="Documents" description="Employment records referenced by link — metadata only, no file upload." icon={<FolderOpen size={20} color="var(--color-primary-600)" />} />
+      <PageHeader title="Documents" description="Keep track of your employment records and where to find them." icon={<FolderOpen size={20} color="var(--color-primary-600)" />} />
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 'var(--space-xl)', alignItems: 'start' }}>
         <Card>

@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { Card } from '../components/primitives/Card';
 import { Button } from '../components/primitives/Button';
 import { Skeleton } from '../components/primitives/Skeleton';
+import { EmptyState } from '../components/primitives/EmptyState';
 import {
   Clock,
   LogIn,
@@ -14,15 +15,36 @@ import {
   Users,
   ArrowRight,
   CheckCircle2,
+  CheckCircle,
+  XCircle,
+  FileClock,
 } from 'lucide-react';
 import { checkIn, checkOut, getMyAttendance, getAllAttendance } from '../api-client/attendance';
 import { getMyLeaveRequests, getAllLeaveRequests } from '../api-client/leave';
 import { getMyPayroll } from '../api-client/payroll';
 import { getMyDocuments } from '../api-client/documents';
-import { getEmployees } from '../api-client/employees';
-import type { Attendance } from '@shared/types';
+import { getEmployees, getRecentActivity } from '../api-client/employees';
+import type { Attendance, ActivityItem } from '@shared/types';
 import { parseApiError } from '../utils/apiHelper';
 import { useToast } from '../components/primitives/Toast';
+
+/** Real actions synthesized server-side from attendance/leave rows (see
+ *  EmployeesRepository.findRecentActivity) — an icon per actual action
+ *  string the backend produces, not a generic bullet for everything. */
+function activityIcon(action: string): React.ReactNode {
+  if (action.includes('approved')) return <CheckCircle size={15} color="var(--color-success-500)" />;
+  if (action.includes('rejected')) return <XCircle size={15} color="var(--color-danger-500)" />;
+  if (action.includes('Leave request')) return <CalendarDays size={15} color="var(--color-primary-500)" />;
+  return <Clock size={15} color="var(--text-tertiary-color)" />;
+}
+
+function formatActivityTime(iso: string): string {
+  const date = new Date(iso);
+  const isToday = date.toDateString() === new Date().toDateString();
+  return isToday
+    ? date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    : date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+}
 
 function greeting(): string {
   const h = new Date().getHours();
@@ -68,6 +90,7 @@ export const DashboardPage: React.FC = () => {
   const [pendingLeaveCount, setPendingLeaveCount] = useState<number | null>(null);
   const [latestPayNet, setLatestPayNet] = useState<{ amount: number; currency: string } | null>(null);
   const [documentCount, setDocumentCount] = useState<number | null>(null);
+  const [recentActivity, setRecentActivity] = useState<ActivityItem[]>([]);
   const [isCheckingIn, setIsCheckingIn] = useState(false);
   const [isCheckingOut, setIsCheckingOut] = useState(false);
 
@@ -94,11 +117,12 @@ export const DashboardPage: React.FC = () => {
           setCheckedInToday(Array.isArray(attRes) ? attRes.length : attRes.total);
           setPendingApprovals(leaveRes.total);
         } else {
-          const [attRes, leaveRes, payRes, docRes] = await Promise.all([
+          const [attRes, leaveRes, payRes, docRes, activityRes] = await Promise.all([
             getMyAttendance({ page: 1, limit: 5 }),
             getMyLeaveRequests({ page: 1, limit: 1, status: 'Pending' }),
             getMyPayroll(),
             getMyDocuments(),
+            getRecentActivity(),
           ]);
           if (cancelled) return;
           const attItems = Array.isArray(attRes) ? attRes : attRes.items;
@@ -109,6 +133,7 @@ export const DashboardPage: React.FC = () => {
             setLatestPayNet({ amount: payRes[0].netPay, currency: payRes[0].currency });
           }
           setDocumentCount(docRes.length);
+          setRecentActivity(activityRes.slice(0, 5));
         }
       } catch {
         // Dashboard summary data failing to load isn't fatal to the app —
@@ -218,30 +243,52 @@ export const DashboardPage: React.FC = () => {
               <span style={{ font: 'var(--font-label)', color: 'var(--text-tertiary-color)' }}>Checked in today</span>
               {isLoading ? <Skeleton height="28px" width="60px" /> : <span className="font-numeric" style={{ font: 'var(--font-metric)', color: 'var(--color-success-700)' }}>{checkedInToday}</span>}
             </Card>
-            <Card style={metricCardStyle}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ font: 'var(--font-label)', color: 'var(--text-tertiary-color)' }}>Pending approvals</span>
-                {!isLoading && !!pendingApprovals && <ArrowRight size={14} color="var(--text-tertiary-color)" />}
-              </div>
-              {isLoading ? (
-                <Skeleton height="28px" width="60px" />
-              ) : (
-                <button
-                  onClick={() => navigate('/leave')}
-                  style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', textAlign: 'left' }}
-                >
+            <Card padding="none">
+              {/* The whole card is the click target, not just the number below the
+                  label — the label row is where the "→ more" affordance lives, so
+                  it has to be clickable too or the affordance is misleading. */}
+              <button
+                onClick={() => navigate('/leave')}
+                disabled={isLoading}
+                style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem', width: '100%', padding: 'var(--space-lg)', background: 'none', border: 'none', cursor: isLoading ? 'default' : 'pointer', textAlign: 'left', font: 'inherit', color: 'inherit' }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ font: 'var(--font-label)', color: 'var(--text-tertiary-color)' }}>Pending approvals</span>
+                  {!isLoading && !!pendingApprovals && <ArrowRight size={14} color="var(--text-tertiary-color)" />}
+                </div>
+                {isLoading ? (
+                  <Skeleton height="28px" width="60px" />
+                ) : (
                   <span className="font-numeric" style={{ font: 'var(--font-metric)', color: pendingApprovals ? 'var(--color-warning-700)' : 'var(--text-primary-color)' }}>
                     {pendingApprovals}
                   </span>
-                </button>
-              )}
+                )}
+              </button>
             </Card>
           </>
         ) : (
           <>
-            <Card style={metricCardStyle}>
-              <span style={{ font: 'var(--font-label)', color: 'var(--text-tertiary-color)' }}>Pending leave requests</span>
-              {isLoading ? <Skeleton height="28px" width="40px" /> : <span className="font-numeric" style={{ font: 'var(--font-metric)' }}>{pendingLeaveCount}</span>}
+            <Card padding="none">
+              {/* Whole card is the click target — see the matching HR "Pending
+                  approvals" card above for why (the arrow affordance sits on the
+                  label row, so that row must be clickable too). */}
+              <button
+                onClick={() => navigate('/leave', { state: { filterStatus: 'Pending' } })}
+                disabled={isLoading}
+                style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem', width: '100%', padding: 'var(--space-lg)', background: 'none', border: 'none', cursor: isLoading ? 'default' : 'pointer', textAlign: 'left', font: 'inherit', color: 'inherit' }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ font: 'var(--font-label)', color: 'var(--text-tertiary-color)' }}>Pending leave requests</span>
+                  {!isLoading && !!pendingLeaveCount && <ArrowRight size={14} color="var(--text-tertiary-color)" />}
+                </div>
+                {isLoading ? (
+                  <Skeleton height="28px" width="40px" />
+                ) : (
+                  <span className="font-numeric" style={{ font: 'var(--font-metric)', color: pendingLeaveCount ? 'var(--color-warning-700)' : 'var(--text-primary-color)' }}>
+                    {pendingLeaveCount}
+                  </span>
+                )}
+              </button>
             </Card>
             <Card style={metricCardStyle}>
               <span style={{ font: 'var(--font-label)', color: 'var(--text-tertiary-color)' }}>Latest payslip</span>
@@ -303,6 +350,36 @@ export const DashboardPage: React.FC = () => {
           ))}
         </div>
       </div>
+
+      {!isHR && (
+        <div>
+          <h2 style={{ font: 'var(--font-section-title)', marginBottom: 'var(--space-sm)' }}>Recent activity</h2>
+          <Card padding="none">
+            {isLoading ? (
+              <div style={{ padding: 'var(--space-lg)', display: 'flex', flexDirection: 'column', gap: 'var(--space-sm)' }}>
+                <Skeleton height="20px" />
+                <Skeleton height="20px" />
+              </div>
+            ) : recentActivity.length === 0 ? (
+              <EmptyState compact icon={<FileClock size={20} />} title="No activity yet" description="Check-ins and leave updates will show up here." />
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                {recentActivity.map((item, i) => (
+                  <div key={item.id + item.action} style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)', padding: '0.625rem var(--space-lg)', borderTop: i === 0 ? 'none' : '1px solid var(--border-subtle)' }}>
+                    {activityIcon(item.action)}
+                    <span style={{ font: 'var(--font-body)', color: 'var(--text-primary-color)', flexGrow: 1 }}>
+                      {item.action}{item.details ? ` — ${item.details}` : ''}
+                    </span>
+                    <span className="font-numeric" style={{ font: 'var(--font-body-sm)', color: 'var(--text-tertiary-color)', flexShrink: 0 }}>
+                      {formatActivityTime(item.timestamp)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+        </div>
+      )}
     </div>
   );
 };

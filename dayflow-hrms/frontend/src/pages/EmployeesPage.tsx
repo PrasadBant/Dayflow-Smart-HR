@@ -217,7 +217,7 @@ export const EmployeesPage: React.FC = () => {
       <Card padding="none">
         <form onSubmit={handleFilterSubmit} style={{ display: 'flex', gap: 'var(--space-md)', flexWrap: 'wrap', alignItems: 'flex-end', padding: 'var(--space-lg)', borderBottom: '1px solid var(--border-subtle)' }}>
           <div style={{ flex: '1 1 240px' }}>
-            <FormField label="Search" htmlFor="emp-search">
+            <FormField label="Search employees" htmlFor="emp-search">
               <div style={{ position: 'relative' }}>
                 <Search size={16} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-disabled-color)' }} />
                 <Input id="emp-search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Name or employee code" style={{ paddingLeft: '34px' }} />
@@ -371,7 +371,7 @@ export const EmployeesPage: React.FC = () => {
 
             {contextTab === 'attendance' && (
               context.attendance.length === 0 ? (
-                <EmptyState compact title="No attendance records" />
+                <EmptyState compact title="No attendance records" description="Nothing has been logged for this employee yet." />
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                   {context.attendance.map((a) => (
@@ -386,7 +386,7 @@ export const EmployeesPage: React.FC = () => {
 
             {contextTab === 'leave' && (
               context.leaveRequests.length === 0 ? (
-                <EmptyState compact title="No leave requests" />
+                <EmptyState compact title="No leave requests" description="This employee hasn't requested any leave." />
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                   {context.leaveRequests.map((l) => (
@@ -401,7 +401,7 @@ export const EmployeesPage: React.FC = () => {
 
             {contextTab === 'payroll' && (
               payrollRecords.length === 0 ? (
-                <EmptyState compact icon={<BadgeDollarSign size={20} />} title="No payroll records" />
+                <EmptyState compact icon={<BadgeDollarSign size={20} />} title="No payroll records" description="Add a record to start tracking this employee's pay." />
               ) : isEditingPayroll ? (
                 <form onSubmit={handleSavePayroll}>
                   {payrollEditError && <ErrorBanner variant="error" message={payrollEditError} />}

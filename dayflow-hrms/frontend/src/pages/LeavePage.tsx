@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useLocation } from 'react-router-dom';
 import {
   CalendarDays,
   PlusCircle,
@@ -7,6 +8,7 @@ import {
   MessageSquare,
   UserCheck,
   Inbox,
+  X,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { PageHeader } from '../components/primitives/PageHeader';
@@ -34,6 +36,7 @@ import {
   getAllLeaveRequests,
   decideLeaveRequest,
 } from '../api-client/leave';
+import { getEmployees } from '../api-client/employees';
 import { parseApiError } from '../utils/apiHelper';
 
 const PAGE_SIZE = 20;
@@ -42,6 +45,7 @@ const STATUS_SUMMARY: LeaveStatus[] = ['Pending', 'Approved', 'Rejected'];
 export const LeavePage: React.FC = () => {
   const { user } = useAuth();
   const { showToast } = useToast();
+  const location = useLocation();
   const isHR = user?.role === 'HR';
 
   const [activeTab, setActiveTab] = useState<'pending' | 'mine'>(isHR ? 'pending' : 'mine');
@@ -50,6 +54,16 @@ export const LeavePage: React.FC = () => {
   // call per status, reading `.total`), never a count of whatever happens
   // to be on the currently-loaded page.
   const [statusCounts, setStatusCounts] = useState<Record<LeaveStatus, number | null>>({ Pending: null, Approved: null, Rejected: null });
+
+  // Clicking a status card filters "My leave history" to that status — the
+  // only way to answer "do I have anything pending?" without scrolling
+  // past every approved/rejected request first. Also settable by deep-link
+  // from the Dashboard's "Pending leave requests" metric (location.state),
+  // so following that link lands the user on exactly what it promised
+  // instead of an unfiltered list they'd have to re-filter themselves.
+  const [historyFilter, setHistoryFilter] = useState<LeaveStatus | null>(
+    (location.state as { filterStatus?: LeaveStatus } | null)?.filterStatus ?? null
+  );
 
   // Employee form
   const [leaveType, setLeaveType] = useState<LeaveType>('Paid');
@@ -73,17 +87,23 @@ export const LeavePage: React.FC = () => {
   const [isLoadingPending, setIsLoadingPending] = useState(false);
   const [pendingError, setPendingError] = useState<string | null>(null);
 
+  // employeeId -> "First Last" for the pending-approvals list below. HR needs
+  // to know WHO is asking before deciding — a truncated UUID isn't an answer.
+  // Built from the existing employee directory (already paginated up to 100
+  // per page), never a name invented client-side.
+  const [employeeNames, setEmployeeNames] = useState<Record<string, string>>({});
+
   // HR decision modal
   const [selectedRequest, setSelectedRequest] = useState<LeaveRequest | null>(null);
   const [decisionComments, setDecisionComments] = useState('');
   const [isDeciding, setIsDeciding] = useState(false);
   const [decisionError, setDecisionError] = useState<string | null>(null);
 
-  const fetchMyRequests = useCallback(async (targetPage: number = 1) => {
+  const fetchMyRequests = useCallback(async (targetPage: number = 1, status: LeaveStatus | null = historyFilter) => {
     setIsLoadingMine(true);
     setMineError(null);
     try {
-      const res = await getMyLeaveRequests({ page: targetPage, limit: PAGE_SIZE });
+      const res = await getMyLeaveRequests({ page: targetPage, limit: PAGE_SIZE, status: status ?? undefined });
       setMyRequests(res.items);
       setMyTotal(res.total);
       setMyPage(targetPage);
@@ -92,7 +112,7 @@ export const LeavePage: React.FC = () => {
     } finally {
       setIsLoadingMine(false);
     }
-  }, []);
+  }, [historyFilter]);
 
   const fetchStatusCounts = useCallback(async () => {
     const results = await Promise.allSettled(
@@ -128,6 +148,20 @@ export const LeavePage: React.FC = () => {
     if (!isHR) fetchStatusCounts();
     if (isHR) fetchPendingRequests();
   }, [fetchMyRequests, fetchStatusCounts, fetchPendingRequests, isHR]);
+
+  useEffect(() => {
+    if (!isHR) return;
+    // The org is small enough (see the 100-per-page cap the API already
+    // enforces) that one call covers the whole directory — no pagination
+    // loop needed to build a complete lookup.
+    getEmployees({ limit: 100 })
+      .then((res) => {
+        const map: Record<string, string> = {};
+        res.items.forEach((emp) => { map[emp.id] = `${emp.firstName} ${emp.lastName}`; });
+        setEmployeeNames(map);
+      })
+      .catch(() => { /* Non-critical: falls back to the employee code below. */ });
+  }, [isHR]);
 
   const handleCreateLeave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -189,7 +223,7 @@ export const LeavePage: React.FC = () => {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-xl)' }}>
       <PageHeader
         title="Leave"
-        description={isHR ? 'Review and decide on employee leave requests.' : 'Submit requests and track their status.'}
+        description={isHR ? 'Review and decide on employee leave requests.' : 'Request leave and track the status of your requests.'}
         icon={<CalendarDays size={20} color="var(--color-primary-600)" />}
       />
 
@@ -232,7 +266,9 @@ export const LeavePage: React.FC = () => {
                 >
                   <div style={{ minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)', marginBottom: '0.25rem', flexWrap: 'wrap' }}>
-                      <span style={{ font: 'var(--font-section-title)' }}>Employee #{req.employeeId.slice(0, 8)}</span>
+                      <span style={{ font: 'var(--font-section-title)' }}>
+                        {employeeNames[req.employeeId] ?? `Employee #${req.employeeId.slice(0, 8)}`}
+                      </span>
                       <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-tertiary-color)', backgroundColor: 'var(--bg-sunken)', padding: '0.0625rem 0.5rem', borderRadius: 'var(--radius-sm)' }}>
                         {req.leaveType}
                       </span>
@@ -267,7 +303,7 @@ export const LeavePage: React.FC = () => {
         isOpen={!!selectedRequest}
         onClose={() => setSelectedRequest(null)}
         title="Review leave request"
-        description={selectedRequest ? `Submitted by employee #${selectedRequest.employeeId.slice(0, 8)}` : undefined}
+        description={selectedRequest ? `Submitted by ${employeeNames[selectedRequest.employeeId] ?? `employee #${selectedRequest.employeeId.slice(0, 8)}`}` : undefined}
         footer={
           <>
             <Button variant="ghost" size="sm" onClick={() => setSelectedRequest(null)} disabled={isDeciding}>Cancel</Button>
@@ -295,16 +331,39 @@ export const LeavePage: React.FC = () => {
         <>
           {!isHR && (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 'var(--space-md)' }}>
-              {STATUS_SUMMARY.map((status) => (
-                <Card key={status} style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
-                  <span style={{ font: 'var(--font-label)', color: 'var(--text-tertiary-color)' }}>{status}</span>
-                  {statusCounts[status] === null ? (
-                    <Skeleton height="28px" width="32px" />
-                  ) : (
-                    <span className="font-numeric" style={{ font: 'var(--font-metric)' }}>{statusCounts[status]}</span>
-                  )}
-                </Card>
-              ))}
+              {STATUS_SUMMARY.map((status) => {
+                const isActive = historyFilter === status;
+                return (
+                  <button
+                    key={status}
+                    onClick={() => setHistoryFilter(isActive ? null : status)}
+                    aria-pressed={isActive}
+                    title={`Show only ${status.toLowerCase()} requests`}
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '0.375rem',
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      backgroundColor: 'var(--bg-surface)',
+                      border: `1px solid ${isActive ? 'var(--color-primary-500)' : 'var(--border-default)'}`,
+                      borderRadius: 'var(--radius-lg)',
+                      boxShadow: isActive ? 'var(--focus-ring)' : 'var(--shadow-xs)',
+                      padding: 'var(--space-lg)',
+                      font: 'inherit',
+                      color: 'inherit',
+                      transition: 'border-color var(--transition-fast), box-shadow var(--transition-fast)',
+                    }}
+                  >
+                    <span style={{ font: 'var(--font-label)', color: 'var(--text-tertiary-color)' }}>{status}</span>
+                    {statusCounts[status] === null ? (
+                      <Skeleton height="28px" width="32px" />
+                    ) : (
+                      <span className="font-numeric" style={{ font: 'var(--font-metric)' }}>{statusCounts[status]}</span>
+                    )}
+                  </button>
+                );
+              })}
             </div>
           )}
 
@@ -340,14 +399,21 @@ export const LeavePage: React.FC = () => {
                 </FormField>
 
                 <Button type="submit" variant="primary" isLoading={isSubmitting} style={{ width: '100%', marginTop: 'var(--space-sm)' }}>
-                  Submit request
+                  Request leave
                 </Button>
               </form>
             </Card>
 
             <Card padding="none">
-              <div style={{ padding: 'var(--space-lg) var(--space-lg) var(--space-sm)' }}>
-                <h2 style={{ font: 'var(--font-section-title)' }}>History</h2>
+              <div style={{ padding: 'var(--space-lg) var(--space-lg) var(--space-sm)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h2 style={{ font: 'var(--font-section-title)' }}>
+                  {historyFilter ? `${historyFilter} requests` : 'History'}
+                </h2>
+                {historyFilter && (
+                  <Button variant="ghost" size="sm" onClick={() => setHistoryFilter(null)} leftIcon={<X size={13} />}>
+                    Clear filter
+                  </Button>
+                )}
               </div>
 
               {mineError && <div style={{ padding: '0 var(--space-lg)' }}><ErrorBanner variant="error" message={mineError} onRetry={() => fetchMyRequests(myPage)} /></div>}
@@ -358,7 +424,12 @@ export const LeavePage: React.FC = () => {
                   <Skeleton height="64px" />
                 </div>
               ) : myRequests.length === 0 ? (
-                <EmptyState icon={<Inbox size={22} />} title="No leave requests yet" description="Use the form to submit your first request." compact />
+                <EmptyState
+                  icon={<Inbox size={22} />}
+                  title={historyFilter ? `No ${historyFilter.toLowerCase()} requests` : 'No leave requests yet'}
+                  description={historyFilter ? 'Try a different filter, or clear it to see everything.' : 'Use the form to request your first leave.'}
+                  compact
+                />
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
                   {myRequests.map((req, i) => (
