@@ -2,6 +2,7 @@ import { EmployeesRepository, EmployeeUpdateFields } from '../repositories/emplo
 import { DepartmentsRepository } from '../repositories/departments.repository';
 import { AttendanceRepository } from '../repositories/attendance.repository';
 import { LeaveRepository } from '../repositories/leave.repository';
+import { PayrollRepository } from '../repositories/payroll.repository';
 import { AppError } from '../auth/errors/AppError';
 import type {
   Employee,
@@ -111,11 +112,16 @@ export const EmployeesService = {
     const employee = await EmployeesRepository.findById(employeeId);
     if (!employee) throw new AppError('NOT_FOUND', 'Employee not found', 404);
 
-    const [attendance, leaveRequests] = await Promise.all([
+    const [attendance, leaveRequests, payroll] = await Promise.all([
       AttendanceRepository.findRecentByEmployee(employeeId, 7),
       LeaveRepository.findRecentByEmployee(employeeId, 20),
+      // Needed for the HR payroll-editing UI (EmployeesPage.tsx), which
+      // reads context.payroll — CONTRACT.md declares EmployeeContext as
+      // optionally carrying this, but nothing ever populated it, so the
+      // field was always undefined in every real response until now.
+      PayrollRepository.findByEmployee(employeeId),
     ]);
 
-    return { employee, attendance, leaveRequests };
+    return { employee, attendance, leaveRequests, payroll };
   },
 };

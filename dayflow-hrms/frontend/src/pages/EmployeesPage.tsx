@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Users, Search, RefreshCw, Eye, X, Pencil, Save } from 'lucide-react';
+import { Users, Search, RefreshCw, Eye, X, Pencil, Save, BadgeDollarSign } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/primitives/Card';
 import { FormField, Input, Select } from '../components/primitives/FormField';
 import { Button } from '../components/primitives/Button';
@@ -8,10 +8,19 @@ import { LeaveStatusBadge } from '../components/primitives/LeaveStatusBadge';
 import { Skeleton } from '../components/primitives/Skeleton';
 import { ErrorBanner } from '../components/primitives/ErrorBanner';
 import { Pagination } from '../components/primitives/Pagination';
-import type { Employee, Department, EmployeeContext, Paginated, UpdateProfileRequest } from '@shared/types';
+import type { Employee, Department, EmployeeContext, Paginated, UpdateProfileRequest, UpdatePayrollRequest } from '@shared/types';
 import { getEmployees, switchEmployeeContext, updateEmployee } from '../api-client/employees';
 import { getDepartments } from '../api-client/departments';
+import { updatePayroll } from '../api-client/payroll';
 import { parseApiError } from '../utils/apiHelper';
+
+function formatCurrency(amount: number, currency: string): string {
+  try {
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(amount);
+  } catch {
+    return `${currency} ${amount.toFixed(2)}`;
+  }
+}
 
 const PAGE_SIZE = 20;
 
@@ -40,6 +49,19 @@ export const EmployeesPage: React.FC = () => {
   const [editPhone, setEditPhone] = useState('');
   const [isSavingEdit, setIsSavingEdit] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
+
+  // HR payroll edit — PATCH /api/payroll/:employeeId. Per PayrollService.update,
+  // this always targets the employee's most recent record (context.payroll[0],
+  // since the backend returns payroll sorted by pay period descending) and
+  // recomputes netPay server-side; there is no per-record id in the update
+  // contract, so editing "the latest record" is the real, complete feature,
+  // not a partial version of a richer one.
+  const [isEditingPayroll, setIsEditingPayroll] = useState(false);
+  const [editBaseSalary, setEditBaseSalary] = useState('');
+  const [editBonuses, setEditBonuses] = useState('');
+  const [editDeductions, setEditDeductions] = useState('');
+  const [isSavingPayroll, setIsSavingPayroll] = useState(false);
+  const [payrollEditError, setPayrollEditError] = useState<string | null>(null);
 
   const load = useCallback(async (targetPage: number) => {
     setIsLoading(true);
@@ -77,9 +99,13 @@ export const EmployeesPage: React.FC = () => {
     setIsLoadingContext(true);
     setContext(null);
     setIsEditing(false);
+    setIsEditingPayroll(false);
     try {
       const ctx = await switchEmployeeContext(id);
-      setContext(ctx);
+      // `payroll` is optional in EmployeeContext (CONTRACT.md) — normalize
+      // to an array once here so the rest of this component can treat it
+      // as always-present, matching what the backend actually sends today.
+      setContext({ ...ctx, payroll: ctx.payroll ?? [] });
     } catch (err) {
       setContextError(parseApiError(err).message);
     } finally {
@@ -122,6 +148,55 @@ export const EmployeesPage: React.FC = () => {
       setIsSavingEdit(false);
     }
   };
+
+  const handleStartEditPayroll = () => {
+    if (!context || !context.payroll || context.payroll.length === 0) return;
+    const latest = context.payroll[0];
+    setEditBaseSalary(String(latest.baseSalary));
+    setEditBonuses(String(latest.bonuses));
+    setEditDeductions(String(latest.deductions));
+    setPayrollEditError(null);
+    setIsEditingPayroll(true);
+  };
+
+  const handleSavePayroll = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!context || !context.payroll || context.payroll.length === 0) return;
+    setPayrollEditError(null);
+
+    const baseSalary = Number(editBaseSalary);
+    const bonuses = Number(editBonuses);
+    const deductions = Number(editDeductions);
+    if ([baseSalary, bonuses, deductions].some((v) => isNaN(v) || v < 0)) {
+      setPayrollEditError('Base salary, bonuses, and deductions must all be non-negative numbers.');
+      return;
+    }
+    if (baseSalary + bonuses - deductions < 0) {
+      setPayrollEditError('Deductions cannot exceed base salary plus bonuses (net pay would be negative).');
+      return;
+    }
+
+    setIsSavingPayroll(true);
+    try {
+      const payload: UpdatePayrollRequest = { baseSalary, bonuses, deductions };
+      const updated = await updatePayroll(context.employee.id, payload);
+      // Server-state reconciliation: replace the edited record (always
+      // index 0 — the latest — per PayrollService.update) with exactly what
+      // the server returned, including its server-computed netPay, rather
+      // than trusting the locally-entered values.
+      setContext({ ...context, payroll: [updated, ...context.payroll.slice(1)] as typeof context.payroll });
+      setIsEditingPayroll(false);
+    } catch (err) {
+      setPayrollEditError(parseApiError(err).message);
+    } finally {
+      setIsSavingPayroll(false);
+    }
+  };
+
+  // `payroll` is optional in EmployeeContext (CONTRACT.md) — normalized to
+  // an array here so the JSX below can treat it as always-present, matching
+  // what handleView already guarantees is really in `context` at runtime.
+  const payrollRecords = context?.payroll ?? [];
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-xl)' }}>
@@ -293,6 +368,56 @@ export const EmployeesPage: React.FC = () => {
                         <div key={l.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--text-xs)' }}>
                           <span>{l.leaveType}: {l.startDate} to {l.endDate}</span>
                           <LeaveStatusBadge status={l.status} size="sm" />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-sm)' }}>
+                    <h5 style={{ fontSize: 'var(--text-sm)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                      <BadgeDollarSign size={14} /> Payroll
+                    </h5>
+                    {!isEditingPayroll && payrollRecords.length > 0 && (
+                      <Button variant="outline" size="sm" onClick={handleStartEditPayroll} leftIcon={<Pencil size={14} />}>
+                        Edit Latest
+                      </Button>
+                    )}
+                  </div>
+                  {payrollRecords.length === 0 ? (
+                    <div style={{ fontSize: 'var(--text-sm)', color: 'var(--color-slate-500)' }}>No payroll records.</div>
+                  ) : isEditingPayroll ? (
+                    <form onSubmit={handleSavePayroll}>
+                      {payrollEditError && <ErrorBanner variant="error" message={payrollEditError} />}
+                      <div style={{ fontSize: 'var(--text-xs)', color: 'var(--color-slate-500)', marginBottom: 'var(--space-sm)' }}>
+                        Editing pay period {payrollRecords[0].payPeriodStart} — {payrollRecords[0].payPeriodEnd}
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 'var(--space-md)' }}>
+                        <FormField label="Base Salary" required htmlFor="edit-base-salary">
+                          <Input id="edit-base-salary" type="number" min="0" step="0.01" value={editBaseSalary} onChange={(e) => setEditBaseSalary(e.target.value)} required />
+                        </FormField>
+                        <FormField label="Bonuses" required htmlFor="edit-bonuses">
+                          <Input id="edit-bonuses" type="number" min="0" step="0.01" value={editBonuses} onChange={(e) => setEditBonuses(e.target.value)} required />
+                        </FormField>
+                        <FormField label="Deductions" required htmlFor="edit-deductions">
+                          <Input id="edit-deductions" type="number" min="0" step="0.01" value={editDeductions} onChange={(e) => setEditDeductions(e.target.value)} required />
+                        </FormField>
+                      </div>
+                      <div style={{ display: 'flex', gap: 'var(--space-sm)', marginTop: 'var(--space-sm)' }}>
+                        <Button type="submit" variant="primary" size="sm" isLoading={isSavingPayroll} leftIcon={<Save size={14} />}>Save Payroll</Button>
+                        <Button type="button" variant="ghost" size="sm" onClick={() => setIsEditingPayroll(false)} disabled={isSavingPayroll}>Cancel</Button>
+                      </div>
+                    </form>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
+                      {payrollRecords.map((p) => (
+                        <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--text-xs)' }}>
+                          <span>{p.payPeriodStart} — {p.payPeriodEnd}</span>
+                          <span>
+                            Base {formatCurrency(p.baseSalary, p.currency)} · Bonuses {formatCurrency(p.bonuses, p.currency)} · Deductions −{formatCurrency(p.deductions, p.currency)} ·{' '}
+                            <strong>Net {formatCurrency(p.netPay, p.currency)}</strong>
+                          </span>
                         </div>
                       ))}
                     </div>

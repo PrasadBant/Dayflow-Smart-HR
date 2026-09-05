@@ -84,7 +84,8 @@ Dayflow-Smart-HR/
     ├── database/
     │   ├── schema.sql           # tables, constraints, triggers
     │   ├── seed.sql             # demo departments/users/employees/records
-    │   └── a7_rls.sql           # optional row-level-security hardening (see Known limitations)
+    │   ├── a7_rls.sql           # RLS policies + dayflow_app role (template — see init-rls.sh)
+    │   └── init-rls.sh          # substitutes APP_DB_PASSWORD into a7_rls.sql at container init
     ├── tests/e2e/                # cross-service integration test scripts
     └── scripts/                  # unified E2E runner, DB constraint verification
 ```
@@ -115,9 +116,14 @@ The `db` service initializes from `schema.sql`, `seed.sql`, and `a7_rls.sql` on 
 createdb -U postgres dayflow_db
 psql -U postgres -d dayflow_db -f dayflow-hrms/database/schema.sql
 psql -U postgres -d dayflow_db -f dayflow-hrms/database/seed.sql
-psql -U postgres -d dayflow_db -f dayflow-hrms/database/a7_rls.sql
+
+# a7_rls.sql is a template — it contains the literal placeholder token
+# __APP_DB_PASSWORD__, not a real password, so it can't be piped to psql
+# directly. The value below matches env.template's DATABASE_URL further
+# down — change both consistently if you use a different one.
+sed "s/__APP_DB_PASSWORD__/dayflow_app_password/g" dayflow-hrms/database/a7_rls.sql | psql -U postgres -d dayflow_db
 ```
-The third file creates the `dayflow_app` role and RLS policies that `DATABASE_URL` below connects as — running only the first two (schema + seed) leaves that role nonexistent, so don't skip it even for local/throwaway use.
+The third step creates the `dayflow_app` role and RLS policies that `DATABASE_URL` below connects as — running only the first two (schema + seed) leaves that role nonexistent, so don't skip it even for local/throwaway use. This mirrors what `database/init-rls.sh` automates for the Docker Compose path.
 
 **Backend** (`dayflow-hrms/backend`):
 ```bash
@@ -146,7 +152,9 @@ npm run dev
 | `VITE_API_URL` | frontend | Base API URL the browser calls (e.g. `http://localhost:5000/api`) |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` | backend | Optional. Without them, verification/password-reset emails are logged to the backend console instead of sent — see [Authentication & authorization](#authentication--authorization) |
 
-A working set of local defaults is in `deployment/env.template`. The Docker Compose stack (`docker-compose.yml`) additionally reads `POSTGRES_USER`/`POSTGRES_PASSWORD`/`POSTGRES_DB` (the database's own superuser, used only for schema initialization) and `APP_DB_USER`/`APP_DB_PASSWORD` (the non-superuser role the backend actually connects as — see [Authentication & authorization](#authentication--authorization) for why that distinction matters) from an optional root-level `.env` file; see `.env.example`. Running `docker compose up` with no `.env` at all works out of the box using built-in fallback values meant for local/demo use only — the backend logs a loud warning at startup if any of them are still in effect under `NODE_ENV=production`.
+A working set of local defaults is in `deployment/env.template`. The Docker Compose stack (`docker-compose.yml`) additionally reads `POSTGRES_USER`/`POSTGRES_PASSWORD`/`POSTGRES_DB` (the database's own superuser, used only for schema initialization) and `APP_DB_USER`/`APP_DB_PASSWORD` (the non-superuser role the backend actually connects as — see [Authentication & authorization](#authentication--authorization) for why that distinction matters) from an optional root-level `.env` file; see `.env.example`.
+
+**Production configuration fails closed.** `docker-compose.yml` hardcodes `NODE_ENV=production`, and `backend/src/config/env.ts` refuses to start under that mode if it's still using the compose file's own default JWT secret, the default DB password, or has no `SMTP_HOST`/`SMTP_FROM` configured — copy `.env.example` to a root `.env` and fill in real values first. This is a deliberate change from earlier versions of this project, which only logged a warning; a real deployment shouldn't be able to silently go live with committed placeholder secrets or no way to actually deliver account email. The `APP_DB_PASSWORD` you set is also what `database/init-rls.sh` uses to create the `dayflow_app` role at DB init time (substituted into `database/a7_rls.sql`, which is otherwise a template, not run directly) — set it once and both sides pick it up consistently.
 
 ## API overview
 

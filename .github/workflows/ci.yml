@@ -87,15 +87,30 @@ jobs:
   e2e:
     runs-on: ubuntu-latest
     needs: [ backend, frontend ]
+    # Production configuration now fails closed (backend/src/config/env.ts):
+    # NODE_ENV=production (hardcoded in docker-compose.yml) refuses to start
+    # with docker-compose.yml's own default JWT secret, default DB password,
+    # or no SMTP configured. These are real, CI-only values — generated for
+    # this workflow, never used anywhere else, and not secret in any
+    # meaningful sense (this job's whole database is destroyed at the end of
+    # the run) — just distinct from the rejected defaults so the stack can
+    # actually start. SMTP points at a host that doesn't exist; email send
+    # attempts fail per-request exactly as they would against any
+    # unreachable SMTP server (see mailer.service.ts's try/catch fallback)
+    # without blocking startup, since env.ts only requires SMTP_HOST/FROM to
+    # be *present*, not reachable.
+    env:
+      JWT_SECRET: ci_e2e_generated_secret_2c6f9a1b8d3e7401f5c2a9b6d8e1f4c7
+      APP_DB_PASSWORD: ci_e2e_generated_db_password_9f4a2c
+      FRONTEND_ORIGIN: http://localhost:3000
+      SMTP_HOST: smtp.ci-e2e.invalid
+      SMTP_PORT: 587
+      SMTP_FROM: no-reply@ci-e2e.invalid
 
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      # No .env file is provided here on purpose: docker-compose.yml's
-      # ${VAR:-default} fallbacks stand in, exactly as they would for a
-      # fresh `git clone && docker compose up` with no configuration —
-      # the scenario this gate is meant to protect.
       - name: Build and start the full stack
         run: docker compose up --build -d
 
@@ -119,7 +134,7 @@ jobs:
       - name: Run full E2E suite against the live stack
         run: |
           docker run --rm --network dayflow-smart-hr_default \
-            -e DATABASE_URL="postgres://dayflow_app:dayflow_app_password@db:5432/dayflow_db" \
+            -e DATABASE_URL="postgres://dayflow_app:${APP_DB_PASSWORD}@db:5432/dayflow_db" \
             -e VITE_API_URL="http://backend:5000/api" \
             -e JWT_SECRET="ci_e2e_client_env_not_used_for_signing_2026" \
             -e FRONTEND_ORIGIN="http://localhost:3000" \

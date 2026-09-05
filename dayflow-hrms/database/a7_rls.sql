@@ -1,4 +1,12 @@
 -- Dayflow HRMS Phase A7 — PostgreSQL Row Level Security (RLS) & Helper Functions
+--
+-- The dayflow_app role's password below is the literal token
+-- __APP_DB_PASSWORD__, not a real password — it's substituted with the real
+-- value at init time (see database/init-rls.sh, which docker-compose.yml
+-- runs via docker-entrypoint-initdb.d instead of running this file
+-- directly). Running `psql -f a7_rls.sql` on this file unmodified will
+-- literally set the role's password to that placeholder string; use
+-- init-rls.sh (or substitute the token yourself first) for a real setup.
 
 ----------------------------------------------------
 -- 1. CONTEXT HELPER & SECURITY DEFINER FUNCTIONS
@@ -38,7 +46,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 DO $$
 BEGIN
     IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'dayflow_app') THEN
-        CREATE ROLE dayflow_app WITH LOGIN PASSWORD 'dayflow_app_password';
+        CREATE ROLE dayflow_app WITH LOGIN PASSWORD '__APP_DB_PASSWORD__';
     END IF;
 END
 $$;

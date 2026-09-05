@@ -17,11 +17,14 @@ import { Client } from 'pg';
 import { env } from '../../backend/src/config/env';
 
 function getAppClient(): Client {
-  // Construct connection URL for dedicated non-superuser dayflow_app role
-  const url = new URL(env.DATABASE_URL);
-  url.username = 'dayflow_app';
-  url.password = 'dayflow_app_password';
-  return new Client({ connectionString: url.toString() });
+  // env.DATABASE_URL already IS the dedicated non-superuser dayflow_app
+  // connection — that's what makes RLS actually apply to the app's own
+  // traffic (see backend/src/config/db.ts and docker-compose.yml's comment
+  // on DATABASE_URL). No need to reconstruct a separate URL with a
+  // hardcoded username/password here; doing so would silently stop testing
+  // the real configured credentials the moment APP_DB_PASSWORD is ever
+  // changed from its default (as production configuration now requires).
+  return new Client({ connectionString: env.DATABASE_URL });
 }
 
 export async function runRLSSecurityTest(): Promise<void> {

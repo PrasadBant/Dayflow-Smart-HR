@@ -47,9 +47,13 @@ docker compose ps
    ```bash
    psql -U postgres -d dayflow_db -f dayflow-hrms/database/schema.sql
    psql -U postgres -d dayflow_db -f dayflow-hrms/database/seed.sql
-   psql -U postgres -d dayflow_db -f dayflow-hrms/database/a7_rls.sql
+
+   # a7_rls.sql is a template (placeholder token __APP_DB_PASSWORD__, not a
+   # real password) — substitute it before running, matching whatever you
+   # put in DATABASE_URL in Step 2 below:
+   sed "s/__APP_DB_PASSWORD__/dayflow_app_password/g" dayflow-hrms/database/a7_rls.sql | psql -U postgres -d dayflow_db
    ```
-   The third script creates the `dayflow_app` role `DATABASE_URL` below connects as — don't skip it, the backend won't be able to connect without that role existing.
+   The third step creates the `dayflow_app` role `DATABASE_URL` below connects as — don't skip it, the backend won't be able to connect without that role existing.
 
 ### Step 2: Configure Environment Variables
 
