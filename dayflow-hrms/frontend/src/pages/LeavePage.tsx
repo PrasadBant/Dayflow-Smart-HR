@@ -207,10 +207,23 @@ export const LeavePage: React.FC = () => {
       const payload: DecideLeaveRequest = { status, decisionComments: decisionComments.trim() || undefined };
       await decideLeaveRequest(selectedRequest.id, payload);
 
-      setPendingRequests((prev) => prev.filter((r) => r.id !== selectedRequest.id));
-      setSelectedRequest(null);
-      setDecisionComments('');
+      const remaining = pendingRequests.filter((r) => r.id !== selectedRequest.id);
+      setPendingRequests(remaining);
       showToast(status === 'Approved' ? 'Leave request approved.' : 'Leave request rejected.', 'success');
+
+      // Advance straight to the next pending request in the queue instead of
+      // just closing — HR processes approvals one after another far more
+      // often than one at a time, and this removes the "click Review again"
+      // step between each. Falls back to closing when the (current page of
+      // the) queue is empty; the background refetch below will repopulate it
+      // if more requests exist beyond this page.
+      if (remaining.length > 0) {
+        setSelectedRequest(remaining[0]);
+        setDecisionComments('');
+      } else {
+        setSelectedRequest(null);
+        setDecisionComments('');
+      }
       fetchPendingRequests(pendingPage);
     } catch (err: unknown) {
       setDecisionError(parseApiError(err).message || 'Failed to record decision.');
@@ -303,7 +316,13 @@ export const LeavePage: React.FC = () => {
         isOpen={!!selectedRequest}
         onClose={() => setSelectedRequest(null)}
         title="Review leave request"
-        description={selectedRequest ? `Submitted by ${employeeNames[selectedRequest.employeeId] ?? `employee #${selectedRequest.employeeId.slice(0, 8)}`}` : undefined}
+        description={selectedRequest ? (() => {
+          const who = employeeNames[selectedRequest.employeeId] ?? `employee #${selectedRequest.employeeId.slice(0, 8)}`;
+          const position = pendingRequests.findIndex((r) => r.id === selectedRequest.id) + 1;
+          // Only worth stating "X of Y" when there's more than one in the
+          // queue to place this among — otherwise it's just noise.
+          return pendingRequests.length > 1 ? `Submitted by ${who} · ${position} of ${pendingRequests.length} pending` : `Submitted by ${who}`;
+        })() : undefined}
         footer={
           <>
             <Button variant="ghost" size="sm" onClick={() => setSelectedRequest(null)} disabled={isDeciding}>Cancel</Button>

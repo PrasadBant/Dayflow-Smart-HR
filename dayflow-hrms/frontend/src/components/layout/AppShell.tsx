@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -11,11 +11,13 @@ import {
   FolderOpen,
   Building2,
   Menu,
+  Search,
   X as CloseIcon,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { Badge } from '../primitives/Badge';
 import { Avatar } from '../primitives/Avatar';
+import { CommandPalette, type CommandAction } from '../primitives/CommandPalette';
 import '../../design/tokens.css';
 
 interface NavItem {
@@ -48,6 +50,7 @@ export const AppShell: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
+  const [isPaletteOpen, setIsPaletteOpen] = useState(false);
   const isHR = user?.role === 'HR';
   const displayName = employee ? `${employee.firstName} ${employee.lastName}` : user?.email || '';
 
@@ -56,6 +59,54 @@ export const AppShell: React.FC = () => {
   useEffect(() => {
     setIsMobileNavOpen(false);
   }, [location.pathname]);
+
+  // Ctrl/Cmd+K opens the command palette from anywhere in the app.
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setIsPaletteOpen((open) => !open);
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
+
+  // Every entry navigates to a real route this app already serves — no
+  // fabricated search results, no action the palette can't actually carry
+  // out. Each page owns its own real action (check in, request leave, etc.);
+  // the palette's job is only to get the user there in one keystroke.
+  const paletteActions: CommandAction[] = useMemo(() => {
+    const pages: CommandAction[] = WORKSPACE_ITEMS.map((item) => ({
+      id: `nav-${item.path}`,
+      label: `Go to ${item.label}`,
+      group: 'Pages',
+      icon: item.icon,
+      run: () => navigate(item.path),
+    }));
+    if (isHR) {
+      pages.push({
+        id: 'nav-employees',
+        label: 'Go to Employees',
+        group: 'Pages',
+        icon: <Users size={17} />,
+        run: () => navigate('/employees'),
+      });
+    }
+
+    const actions: CommandAction[] = isHR
+      ? [
+          { id: 'action-review-leave', label: 'Review pending leave', group: 'Actions', icon: <CalendarDays size={17} />, run: () => navigate('/leave') },
+          { id: 'action-search-employees', label: 'Search employees', group: 'Actions', icon: <Search size={17} />, run: () => navigate('/employees') },
+        ]
+      : [
+          { id: 'action-check-in', label: 'Check in / check out', group: 'Actions', icon: <Clock size={17} />, run: () => navigate('/attendance') },
+          { id: 'action-request-leave', label: 'Request leave', group: 'Actions', icon: <CalendarDays size={17} />, run: () => navigate('/leave') },
+          { id: 'action-view-payroll', label: 'View payroll', group: 'Actions', icon: <BadgeDollarSign size={17} />, run: () => navigate('/payroll') },
+        ];
+
+    return [...actions, ...pages];
+  }, [isHR, navigate]);
 
   const handleLogout = () => {
     logout();
@@ -212,6 +263,26 @@ export const AppShell: React.FC = () => {
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-md)', marginLeft: 'auto' }}>
+            <button
+              onClick={() => setIsPaletteOpen(true)}
+              aria-label="Open command palette"
+              title="Search pages and actions (Ctrl+K)"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                background: 'var(--bg-sunken)',
+                border: '1px solid var(--border-default)',
+                borderRadius: 'var(--radius-md)',
+                padding: '0.3125rem 0.625rem',
+                color: 'var(--text-tertiary-color)',
+                cursor: 'pointer',
+                font: 'var(--font-body-sm)',
+              }}
+            >
+              <Search size={14} />
+              <kbd className="app-command-kbd" style={{ font: 'var(--font-caption)', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-sm)', padding: '0.0625rem 0.3125rem' }}>Ctrl K</kbd>
+            </button>
             <Badge variant={isHR ? 'hr' : 'employee'} dot={false}>{isHR ? 'HR Admin' : 'Employee'}</Badge>
             <Avatar name={displayName} size="sm" tone={isHR ? 'hr' : 'employee'} />
           </div>
@@ -222,6 +293,8 @@ export const AppShell: React.FC = () => {
           <Outlet />
         </main>
       </div>
+
+      <CommandPalette isOpen={isPaletteOpen} onClose={() => setIsPaletteOpen(false)} actions={paletteActions} />
     </div>
   );
 };

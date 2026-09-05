@@ -13,6 +13,9 @@ import {
   BadgeDollarSign,
   FolderOpen,
   Users,
+  Building2,
+  UserCheck,
+  User as UserIcon,
   ArrowRight,
   CheckCircle2,
   CheckCircle,
@@ -23,10 +26,20 @@ import { checkIn, checkOut, getMyAttendance, getAllAttendance } from '../api-cli
 import { getMyLeaveRequests, getAllLeaveRequests } from '../api-client/leave';
 import { getMyPayroll } from '../api-client/payroll';
 import { getMyDocuments } from '../api-client/documents';
-import { getEmployees, getRecentActivity } from '../api-client/employees';
+import { getEmployees, getRecentActivity, getProfile } from '../api-client/employees';
 import type { Attendance, ActivityItem } from '@shared/types';
+import { DEFAULT_UNASSIGNED_DEPARTMENT } from '@shared/types';
 import { parseApiError } from '../utils/apiHelper';
 import { useToast } from '../components/primitives/Toast';
+
+interface AttentionItem {
+  id: string;
+  icon: React.ReactNode;
+  text: string;
+  actionLabel: string;
+  onAction: () => void;
+  isActionLoading?: boolean;
+}
 
 /** Real actions synthesized server-side from attendance/leave rows (see
  *  EmployeesRepository.findRecentActivity) — an icon per actual action
@@ -93,11 +106,17 @@ export const DashboardPage: React.FC = () => {
   const [recentActivity, setRecentActivity] = useState<ActivityItem[]>([]);
   const [isCheckingIn, setIsCheckingIn] = useState(false);
   const [isCheckingOut, setIsCheckingOut] = useState(false);
+  // Real profile fields (phone/address) — fetched fresh here rather than
+  // read from the possibly-stale AuthContext copy, specifically so "needs
+  // attention" reflects the server's current truth, not what was true at
+  // last login.
+  const [profileContact, setProfileContact] = useState<{ phone?: string; address?: string } | null>(null);
 
   // HR-facing data
   const [employeeCount, setEmployeeCount] = useState<number | null>(null);
   const [checkedInToday, setCheckedInToday] = useState<number | null>(null);
   const [pendingApprovals, setPendingApprovals] = useState<number | null>(null);
+  const [unassignedCount, setUnassignedCount] = useState<number | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -107,22 +126,25 @@ export const DashboardPage: React.FC = () => {
       try {
         if (isHR) {
           const today = new Date().toISOString().slice(0, 10);
-          const [empRes, attRes, leaveRes] = await Promise.all([
+          const [empRes, attRes, leaveRes, unassignedRes] = await Promise.all([
             getEmployees({ page: 1, limit: 1 }),
             getAllAttendance({ page: 1, limit: 1, date: today }),
             getAllLeaveRequests({ page: 1, limit: 1, status: 'Pending' }),
+            getEmployees({ page: 1, limit: 1, departmentId: DEFAULT_UNASSIGNED_DEPARTMENT.id }),
           ]);
           if (cancelled) return;
           setEmployeeCount(Array.isArray(empRes) ? empRes.length : empRes.total);
           setCheckedInToday(Array.isArray(attRes) ? attRes.length : attRes.total);
           setPendingApprovals(leaveRes.total);
+          setUnassignedCount(Array.isArray(unassignedRes) ? unassignedRes.length : unassignedRes.total);
         } else {
-          const [attRes, leaveRes, payRes, docRes, activityRes] = await Promise.all([
+          const [attRes, leaveRes, payRes, docRes, activityRes, profileRes] = await Promise.all([
             getMyAttendance({ page: 1, limit: 5 }),
             getMyLeaveRequests({ page: 1, limit: 1, status: 'Pending' }),
             getMyPayroll(),
             getMyDocuments(),
             getRecentActivity(),
+            getProfile(),
           ]);
           if (cancelled) return;
           const attItems = Array.isArray(attRes) ? attRes : attRes.items;
@@ -134,6 +156,7 @@ export const DashboardPage: React.FC = () => {
           }
           setDocumentCount(docRes.length);
           setRecentActivity(activityRes.slice(0, 5));
+          setProfileContact({ phone: profileRes.phone, address: profileRes.address });
         }
       } catch {
         // Dashboard summary data failing to load isn't fatal to the app —
@@ -173,6 +196,107 @@ export const DashboardPage: React.FC = () => {
       setIsCheckingOut(false);
     }
   };
+
+  /**
+   * Every entry here is derived from real data already loaded above — no
+   * invented counts, no decorative "notifications". Each item both explains
+   * why it's here and gives the one action that resolves it, so the
+   * dashboard tells the user what to do next instead of just what exists.
+   */
+  const attentionItems: AttentionItem[] = isLoading
+    ? []
+    : isHR
+    ? [
+        ...(pendingApprovals
+          ? [{
+              id: 'pending-approvals',
+              icon: <UserCheck size={16} color="var(--color-warning-700)" />,
+              text: `${pendingApprovals} leave ${pendingApprovals === 1 ? 'request is' : 'requests are'} awaiting your approval`,
+              actionLabel: 'Review requests',
+              onAction: () => navigate('/leave'),
+            }]
+          : []),
+        ...(unassignedCount
+          ? [{
+              id: 'unassigned-department',
+              icon: <Building2 size={16} color="var(--color-warning-700)" />,
+              text: `${unassignedCount} employee${unassignedCount === 1 ? ' has' : 's have'} no department assigned`,
+              actionLabel: 'View employees',
+              onAction: () => navigate('/employees', { state: { departmentId: DEFAULT_UNASSIGNED_DEPARTMENT.id } }),
+            }]
+          : []),
+      ]
+    : [
+        ...(!todayRecord?.checkIn
+          ? [{
+              id: 'not-checked-in',
+              icon: <Clock size={16} color="var(--color-warning-700)" />,
+              text: "You haven't checked in today",
+              actionLabel: 'Check in',
+              onAction: handleCheckIn,
+              isActionLoading: isCheckingIn,
+            }]
+          : []),
+        ...(pendingLeaveCount
+          ? [{
+              id: 'pending-leave',
+              icon: <CalendarDays size={16} color="var(--color-warning-700)" />,
+              text: `${pendingLeaveCount} leave ${pendingLeaveCount === 1 ? 'request is' : 'requests are'} awaiting approval`,
+              actionLabel: 'View request',
+              onAction: () => navigate('/leave', { state: { filterStatus: 'Pending' } }),
+            }]
+          : []),
+        ...(profileContact && (!profileContact.phone || !profileContact.address)
+          ? [{
+              id: 'incomplete-profile',
+              icon: <UserIcon size={16} color="var(--color-warning-700)" />,
+              text: 'Your profile is missing contact information',
+              actionLabel: 'Complete profile',
+              onAction: () => navigate('/profile'),
+            }]
+          : []),
+      ];
+
+  const attentionSection = !isLoading && (
+    <div>
+      <h2 style={{ font: 'var(--font-section-title)', marginBottom: 'var(--space-sm)' }}>Needs your attention</h2>
+      <Card padding="none">
+        {attentionItems.length === 0 ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)', padding: 'var(--space-lg)' }}>
+            <CheckCircle size={18} color="var(--color-success-500)" />
+            <span style={{ font: 'var(--font-body)', color: 'var(--text-secondary-color)' }}>You're all caught up. Nothing needs your attention right now.</span>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            {attentionItems.map((item, i) => (
+              <div
+                key={item.id}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 'var(--space-md)',
+                  flexWrap: 'wrap',
+                  padding: 'var(--space-md) var(--space-lg)',
+                  borderTop: i === 0 ? 'none' : '1px solid var(--border-subtle)',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)', minWidth: 0 }}>
+                  <div style={{ width: '30px', height: '30px', borderRadius: '50%', backgroundColor: 'var(--color-warning-50)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    {item.icon}
+                  </div>
+                  <span style={{ font: 'var(--font-body)', color: 'var(--text-primary-color)' }}>{item.text}</span>
+                </div>
+                <Button variant="outline" size="sm" isLoading={item.isActionLoading} onClick={item.onAction}>
+                  {item.actionLabel}
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
+    </div>
+  );
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-xl)' }}>
@@ -232,6 +356,8 @@ export const DashboardPage: React.FC = () => {
         </Card>
       )}
 
+      {attentionSection}
+
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 'var(--space-md)' }}>
         {isHR ? (
           <>
@@ -241,7 +367,13 @@ export const DashboardPage: React.FC = () => {
             </Card>
             <Card style={metricCardStyle}>
               <span style={{ font: 'var(--font-label)', color: 'var(--text-tertiary-color)' }}>Checked in today</span>
-              {isLoading ? <Skeleton height="28px" width="60px" /> : <span className="font-numeric" style={{ font: 'var(--font-metric)', color: 'var(--color-success-700)' }}>{checkedInToday}</span>}
+              {isLoading ? (
+                <Skeleton height="28px" width="60px" />
+              ) : (
+                <span className="font-numeric" style={{ font: 'var(--font-metric)', color: 'var(--color-success-700)' }}>
+                  {checkedInToday}{employeeCount ? <span style={{ color: 'var(--text-tertiary-color)', fontSize: 'var(--text-lg)', fontWeight: 500 }}> / {employeeCount}</span> : null}
+                </span>
+              )}
             </Card>
             <Card padding="none">
               {/* The whole card is the click target, not just the number below the

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Users, Search, Pencil, Save, BadgeDollarSign, Mail, Building2, Briefcase, UsersRound } from 'lucide-react';
+import { useLocation } from 'react-router-dom';
+import { Users, Search, Pencil, Save, BadgeDollarSign, Mail, Building2, Briefcase, UsersRound, X, Clock, CalendarCheck } from 'lucide-react';
 import { PageHeader } from '../components/primitives/PageHeader';
 import { Card } from '../components/primitives/Card';
 import { FormField, Input, Select } from '../components/primitives/FormField';
@@ -29,15 +30,52 @@ function formatCurrency(amount: number, currency: string): string {
   }
 }
 
+/**
+ * Three at-a-glance lines built entirely from the EmployeeContext already
+ * fetched for the drawer (no extra API calls) — so HR can read an
+ * employee's cross-domain state before drilling into any one tab, per the
+ * "employee workspace" goal. Every line is either a real status straight
+ * from the data or an honest "none" — nothing here is invented.
+ */
+function employeeStatusSummary(context: EmployeeContext): { icon: React.ReactNode; text: string }[] {
+  const today = new Date().toISOString().slice(0, 10);
+  const todayRecord = context.attendance.find((a) => a.attDate === today);
+  const attendanceText = todayRecord?.checkOut
+    ? 'Checked out today'
+    : todayRecord?.checkIn
+    ? 'Checked in today'
+    : 'Not checked in today';
+
+  const pendingLeave = context.leaveRequests.filter((l) => l.status === 'Pending').length;
+  const leaveText = pendingLeave > 0
+    ? `${pendingLeave} leave request${pendingLeave === 1 ? '' : 's'} pending`
+    : 'No pending leave';
+
+  const payroll = context.payroll ?? [];
+  const payrollText = payroll.length > 0 ? 'Payroll on file' : 'No payroll on file';
+
+  return [
+    { icon: <Clock size={13} color={todayRecord?.checkIn && !todayRecord?.checkOut ? 'var(--color-success-500)' : 'var(--text-tertiary-color)'} />, text: attendanceText },
+    { icon: <CalendarCheck size={13} color={pendingLeave > 0 ? 'var(--color-warning-700)' : 'var(--text-tertiary-color)'} />, text: leaveText },
+    { icon: <BadgeDollarSign size={13} color="var(--text-tertiary-color)" />, text: payrollText },
+  ];
+}
+
 const PAGE_SIZE = 20;
 type ContextTab = 'profile' | 'attendance' | 'leave' | 'payroll';
 
 export const EmployeesPage: React.FC = () => {
   const { showToast } = useToast();
+  const location = useLocation();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [search, setSearch] = useState('');
-  const [departmentId, setDepartmentId] = useState('');
+  // Deep-linkable from the Dashboard's "N employees have no department
+  // assigned" attention item (location.state) — same pattern the Leave page
+  // uses for its Dashboard-> Pending deep-link.
+  const [departmentId, setDepartmentId] = useState(
+    (location.state as { departmentId?: string } | null)?.departmentId ?? ''
+  );
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
@@ -71,12 +109,18 @@ export const EmployeesPage: React.FC = () => {
   const [isSavingPayroll, setIsSavingPayroll] = useState(false);
   const [payrollEditError, setPayrollEditError] = useState<string | null>(null);
 
-  const load = useCallback(async (targetPage: number) => {
+  const load = useCallback(async (targetPage: number, overrides?: { search?: string; departmentId?: string }) => {
+    // Accepts explicit overrides rather than relying purely on `search`/
+    // `departmentId` state: a "clear filter" click needs its fetch to use
+    // the just-cleared value immediately, not whatever this callback's
+    // closure captured before the state update takes effect.
+    const effectiveSearch = overrides?.search !== undefined ? overrides.search : search;
+    const effectiveDepartmentId = overrides?.departmentId !== undefined ? overrides.departmentId : departmentId;
     setIsLoading(true);
     setLoadError(null);
     try {
       const [empRes, deptRes] = await Promise.all([
-        getEmployees({ page: targetPage, limit: PAGE_SIZE, search: search || undefined, departmentId: departmentId || undefined }),
+        getEmployees({ page: targetPage, limit: PAGE_SIZE, search: effectiveSearch || undefined, departmentId: effectiveDepartmentId || undefined }),
         departments.length ? Promise.resolve(departments) : getDepartments(),
       ]);
       const items: Employee[] = Array.isArray(empRes) ? empRes : (empRes as Paginated<Employee>).items;
@@ -235,6 +279,38 @@ export const EmployeesPage: React.FC = () => {
           <Button type="submit" variant="primary" style={{ marginBottom: 'var(--space-md)' }}>Apply filters</Button>
         </form>
 
+        {(search || departmentId) && !isLoading && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.5rem', padding: 'var(--space-sm) var(--space-lg)', borderBottom: '1px solid var(--border-subtle)' }}>
+            <span style={{ font: 'var(--font-body-sm)', color: 'var(--text-tertiary-color)' }}>
+              {total} {total === 1 ? 'result' : 'results'} ·
+            </span>
+            {search && (
+              <button
+                onClick={() => { setSearch(''); load(1, { search: '' }); }}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', backgroundColor: 'var(--bg-sunken)', border: 'none', borderRadius: 'var(--radius-full)', padding: '0.125rem 0.625rem', font: 'var(--font-body-sm)', color: 'var(--text-secondary-color)', cursor: 'pointer' }}
+              >
+                Search: "{search}" <X size={12} />
+              </button>
+            )}
+            {departmentId && (
+              <button
+                onClick={() => { setDepartmentId(''); load(1, { departmentId: '' }); }}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', backgroundColor: 'var(--bg-sunken)', border: 'none', borderRadius: 'var(--radius-full)', padding: '0.125rem 0.625rem', font: 'var(--font-body-sm)', color: 'var(--text-secondary-color)', cursor: 'pointer' }}
+              >
+                Department: {departments.find((d) => d.id === departmentId)?.name ?? '…'} <X size={12} />
+              </button>
+            )}
+            {search && departmentId && (
+              <button
+                onClick={() => { setSearch(''); setDepartmentId(''); load(1, { search: '', departmentId: '' }); }}
+                style={{ background: 'none', border: 'none', color: 'var(--color-primary-600)', font: 'var(--font-body-sm)', fontWeight: 600, cursor: 'pointer', padding: 0 }}
+              >
+                Clear all
+              </button>
+            )}
+          </div>
+        )}
+
         {loadError && <div style={{ padding: 'var(--space-lg) var(--space-lg) 0' }}><ErrorBanner variant="error" message={loadError} onRetry={() => load(page)} /></div>}
 
         {isLoading ? (
@@ -292,11 +368,20 @@ export const EmployeesPage: React.FC = () => {
         onClose={closeDrawer}
         header={
           context ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)' }}>
-              <Avatar name={`${context.employee.firstName} ${context.employee.lastName}`} />
-              <div>
-                <div style={{ font: 'var(--font-section-title)' }}>{context.employee.firstName} {context.employee.lastName}</div>
-                <div style={{ font: 'var(--font-body-sm)', color: 'var(--text-tertiary-color)' }}>{context.employee.position} · {context.employee.departmentName}</div>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)' }}>
+                <Avatar name={`${context.employee.firstName} ${context.employee.lastName}`} />
+                <div>
+                  <div style={{ font: 'var(--font-section-title)' }}>{context.employee.firstName} {context.employee.lastName}</div>
+                  <div style={{ font: 'var(--font-body-sm)', color: 'var(--text-tertiary-color)' }}>{context.employee.position} · {context.employee.departmentName}</div>
+                </div>
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', marginTop: 'var(--space-sm)', paddingTop: 'var(--space-sm)', borderTop: '1px solid var(--border-subtle)' }}>
+                {employeeStatusSummary(context).map((item, i) => (
+                  <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3125rem', font: 'var(--font-body-sm)', color: 'var(--text-secondary-color)' }}>
+                    {item.icon}{item.text}
+                  </span>
+                ))}
               </div>
             </div>
           ) : (

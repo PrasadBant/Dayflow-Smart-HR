@@ -293,6 +293,19 @@ button {
   display: none;
 }
 
+/* The "Ctrl K" hint on the command-palette button — dropped below 640px
+   where topbar width is already contested by the hamburger/badge/avatar;
+   the icon-only button still opens the palette by tap. */
+.app-command-kbd {
+  display: inline;
+}
+
+@media (max-width: 640px) {
+  .app-command-kbd {
+    display: none;
+  }
+}
+
 .app-sidebar-overlay {
   display: none;
   position: fixed;
