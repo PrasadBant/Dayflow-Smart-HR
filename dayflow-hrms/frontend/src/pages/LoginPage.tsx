@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Building2, LogIn, Lock, Mail, ArrowRight } from 'lucide-react';
+import { LogIn, Lock, Mail, ArrowRight } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/primitives/Card';
+import { AuthLayout } from '../components/layout/AuthLayout';
 import { FormField, Input } from '../components/primitives/FormField';
 import { Button } from '../components/primitives/Button';
 import { ErrorBanner } from '../components/primitives/ErrorBanner';
@@ -32,22 +32,18 @@ export const LoginPage: React.FC = () => {
     }
 
     setIsLoading(true);
-
     try {
       const payload: LoginRequest = { email, password };
       const res = await loginRequest(payload);
 
       // Fetch the employee profile right away so AuthContext.employee (used
-      // by the sidebar greeting, dashboard welcome banner, etc.) is
-      // populated from the first render instead of staying null until a
-      // page refresh restores it from localStorage. loginRequest() already
-      // stored the token, so this call is authenticated.
+      // by the sidebar/dashboard greeting) is populated from the first
+      // render instead of staying null until a page refresh restores it.
       let employee = null;
       try {
         employee = await getProfile();
       } catch {
-        // Non-fatal: the session is still valid without the employee
-        // profile: the UI degrades to showing the email instead of a name.
+        // Non-fatal — the session is still valid without it.
       }
 
       login(res.token, res.user, employee);
@@ -56,9 +52,9 @@ export const LoginPage: React.FC = () => {
       const parsed = parseApiError(err);
       if (parsed.code === 'EMAIL_NOT_VERIFIED') {
         setIsUnverified(true);
-        setErrorMessage('Your email address is not verified yet. Please verify your email before logging in.');
+        setErrorMessage('Your email address is not verified yet.');
       } else if (parsed.code === 'UNAUTHORIZED') {
-        setErrorMessage('Invalid email address or password. Please check your credentials.');
+        setErrorMessage('Invalid email address or password.');
       } else {
         setErrorMessage(parsed.message);
       }
@@ -68,95 +64,57 @@ export const LoginPage: React.FC = () => {
   };
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--bg-page)', padding: 'var(--space-md)' }}>
-      <Card style={{ maxWidth: '440px', width: '100%', padding: 'var(--space-xl)', boxShadow: 'var(--shadow-lg)' }}>
-        <CardHeader style={{ textAlign: 'center', marginBottom: 'var(--space-xl)' }}>
-          <div style={{ width: '48px', height: '48px', borderRadius: 'var(--radius-lg)', backgroundColor: 'var(--color-primary-600)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto var(--space-md)' }}>
-            <Building2 size={28} color="#ffffff" />
+    <AuthLayout>
+      <div style={{ marginBottom: 'var(--space-xl)' }}>
+        <h1 style={{ font: 'var(--font-page-title)', color: 'var(--text-primary-color)' }}>Sign in</h1>
+        <p style={{ font: 'var(--font-body)', color: 'var(--text-secondary-color)', marginTop: '0.25rem' }}>
+          Use your work email and password.
+        </p>
+      </div>
+
+      {errorMessage && <ErrorBanner variant={isUnverified ? 'warning' : 'error'} message={errorMessage} />}
+
+      {isUnverified && (
+        <div style={{ marginBottom: 'var(--space-md)' }}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate('/verify-email', { state: { email } })}
+            rightIcon={<ArrowRight size={16} />}
+            style={{ width: '100%' }}
+          >
+            Go to verification
+          </Button>
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit}>
+        <FormField label="Work email" required htmlFor="login-email">
+          <div style={{ position: 'relative' }}>
+            <Mail size={17} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-disabled-color)' }} />
+            <Input id="login-email" type="email" placeholder="employee@company.com" value={email} onChange={(e) => setEmail(e.target.value)} style={{ paddingLeft: '38px' }} required />
           </div>
-          <CardTitle style={{ fontSize: 'var(--text-2xl)' }}>Welcome to Dayflow</CardTitle>
-          <CardDescription>Sign in with your corporate email and password</CardDescription>
-        </CardHeader>
+        </FormField>
 
-        <CardContent>
-          {errorMessage && (
-            <ErrorBanner
-              variant={isUnverified ? 'warning' : 'error'}
-              message={errorMessage}
-            />
-          )}
-
-          {isUnverified && (
-            <div style={{ marginBottom: 'var(--space-md)' }}>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => navigate('/verify-email', { state: { email } })}
-                rightIcon={<ArrowRight size={16} />}
-                style={{ width: '100%', borderColor: 'var(--color-warning-500)', color: 'var(--color-warning-700)' }}
-              >
-                Go to Verification Page
-              </Button>
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit}>
-            <FormField label="Work Email" required htmlFor="login-email">
-              <div style={{ position: 'relative' }}>
-                <Mail size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-slate-400)' }} />
-                <Input
-                  id="login-email"
-                  type="email"
-                  placeholder="employee@company.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  style={{ paddingLeft: '40px' }}
-                  required
-                />
-              </div>
-            </FormField>
-
-            <FormField label="Password" required htmlFor="login-password">
-              <div style={{ position: 'relative' }}>
-                <Lock size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-slate-400)' }} />
-                <Input
-                  id="login-password"
-                  type="password"
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  style={{ paddingLeft: '40px' }}
-                  required
-                />
-              </div>
-            </FormField>
-
-            <div style={{ textAlign: 'right', marginBottom: 'var(--space-md)' }}>
-              <Link to="/forgot-password" style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--color-primary-600)' }}>
-                Forgot password?
-              </Link>
-            </div>
-
-            <Button
-              type="submit"
-              variant="primary"
-              size="lg"
-              isLoading={isLoading}
-              style={{ width: '100%' }}
-              leftIcon={<LogIn size={18} />}
-            >
-              Sign In
-            </Button>
-          </form>
-
-          <div style={{ marginTop: 'var(--space-xl)', textAlign: 'center', fontSize: 'var(--text-sm)', color: 'var(--color-slate-600)' }}>
-            Don't have an account?{' '}
-            <Link to="/signup" style={{ fontWeight: 600, color: 'var(--color-primary-600)' }}>
-              Create an Employee Account
-            </Link>
+        <FormField label="Password" required htmlFor="login-password">
+          <div style={{ position: 'relative' }}>
+            <Lock size={17} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-disabled-color)' }} />
+            <Input id="login-password" type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} style={{ paddingLeft: '38px' }} required />
           </div>
-        </CardContent>
-      </Card>
-    </div>
+        </FormField>
+
+        <div style={{ textAlign: 'right', marginBottom: 'var(--space-md)' }}>
+          <Link to="/forgot-password" style={{ fontSize: 'var(--text-sm)', fontWeight: 600 }}>Forgot password?</Link>
+        </div>
+
+        <Button type="submit" variant="primary" size="lg" isLoading={isLoading} style={{ width: '100%' }} leftIcon={<LogIn size={18} />}>
+          Sign in
+        </Button>
+      </form>
+
+      <div style={{ marginTop: 'var(--space-xl)', textAlign: 'center', font: 'var(--font-body)', color: 'var(--text-secondary-color)' }}>
+        Don't have an account? <Link to="/signup" style={{ fontWeight: 600 }}>Create an account</Link>
+      </div>
+    </AuthLayout>
   );
 };

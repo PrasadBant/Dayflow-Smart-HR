@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate, useLocation, useSearchParams, Link } from 'react-router-dom';
-import { MailCheck, KeyRound, ArrowRight } from 'lucide-react';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/primitives/Card';
+import { KeyRound, ArrowRight } from 'lucide-react';
+import { AuthLayout } from '../components/layout/AuthLayout';
 import { FormField, Input } from '../components/primitives/FormField';
 import { Button } from '../components/primitives/Button';
 import { ErrorBanner } from '../components/primitives/ErrorBanner';
@@ -29,14 +29,10 @@ export const VerifyEmailPage: React.FC = () => {
     try {
       const payload: VerifyEmailRequest = { token };
       await verifyEmailRequest(payload);
-
       setIsSuccess(true);
-      setTimeout(() => {
-        navigate('/login');
-      }, 1500);
+      setTimeout(() => navigate('/login'), 1500);
     } catch (err: unknown) {
-      const parsed = parseApiError(err);
-      setErrorMessage(parsed.message || 'Invalid or expired verification code. Please check your inbox and try again.');
+      setErrorMessage(parseApiError(err).message || 'Invalid or expired verification token.');
     } finally {
       setIsLoading(false);
     }
@@ -44,9 +40,9 @@ export const VerifyEmailPage: React.FC = () => {
 
   // A real "Verify your email" link (see backend Mailer) opens this page as
   // /verify-email?token=... — auto-verify immediately instead of making the
-  // user notice, copy, and re-paste a token that's already sitting in the
-  // address bar they just clicked from. The manual field below stays for the
-  // dev-mode path (token printed to the server console, not in any link).
+  // user notice, copy, and re-paste a token already sitting in the address
+  // bar they just clicked from. The manual field stays for the dev-mode
+  // path (token printed to the server console, not in any link).
   useEffect(() => {
     if (tokenFromLink && !autoSubmitAttempted.current) {
       autoSubmitAttempted.current = true;
@@ -57,96 +53,51 @@ export const VerifyEmailPage: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
     if (!code) {
       setErrorMessage('Please paste your verification token.');
       return;
     }
-
     await verify(code);
   };
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--bg-page)', padding: 'var(--space-md)' }}>
-      <Card style={{ maxWidth: '460px', width: '100%', padding: 'var(--space-xl)', boxShadow: 'var(--shadow-lg)' }}>
-        <CardHeader style={{ textAlign: 'center', marginBottom: 'var(--space-lg)' }}>
-          <div style={{ width: '48px', height: '48px', borderRadius: 'var(--radius-lg)', backgroundColor: 'var(--color-success-500)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto var(--space-md)' }}>
-            <MailCheck size={28} color="#ffffff" />
-          </div>
-          <CardTitle style={{ fontSize: 'var(--text-2xl)' }}>Verify Your Email</CardTitle>
-          <CardDescription>
-            {initialEmail
-              ? `We sent a verification token to ${initialEmail}`
-              : 'Paste the verification token sent to your registered email address'}
-          </CardDescription>
-        </CardHeader>
+    <AuthLayout>
+      <div style={{ marginBottom: 'var(--space-xl)' }}>
+        <h1 style={{ font: 'var(--font-page-title)', color: 'var(--text-primary-color)' }}>Verify your email</h1>
+        <p style={{ font: 'var(--font-body)', color: 'var(--text-secondary-color)', marginTop: '0.25rem' }}>
+          {initialEmail ? `We sent a verification link to ${initialEmail}.` : 'Paste the verification token sent to your email.'}
+        </p>
+      </div>
 
-        <CardContent>
-          {isSuccess ? (
-            <ErrorBanner
-              variant="success"
-              title="Email Verified Successfully!"
-              message="Your account is now active. Redirecting you to the login screen..."
-            />
-          ) : tokenFromLink && isLoading && !errorMessage ? (
-            <div style={{ textAlign: 'center', color: 'var(--color-slate-600)', padding: 'var(--space-lg) 0' }}>
-              Verifying your email…
-            </div>
-          ) : (
-            <>
-              {errorMessage && <ErrorBanner variant="error" message={errorMessage} />}
+      {isSuccess ? (
+        <ErrorBanner variant="success" title="Email verified" message="Your account is now active. Redirecting to sign in…" />
+      ) : tokenFromLink && isLoading && !errorMessage ? (
+        <div style={{ textAlign: 'center', color: 'var(--text-secondary-color)', padding: 'var(--space-lg) 0' }}>Verifying your email…</div>
+      ) : (
+        <>
+          {errorMessage && <ErrorBanner variant="error" message={errorMessage} />}
+          <form onSubmit={handleSubmit}>
+            {!initialEmail && (
+              <FormField label="Work email" required htmlFor="verify-email">
+                <Input id="verify-email" type="email" placeholder="employee@company.com" value={email} onChange={(e) => setEmail(e.target.value)} required />
+              </FormField>
+            )}
+            <FormField label="Verification token" required helperText="Paste the token from your email, or from the server console in development" htmlFor="verify-code">
+              <div style={{ position: 'relative' }}>
+                <KeyRound size={17} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-disabled-color)' }} />
+                <Input id="verify-code" type="text" placeholder="Paste your verification token" value={code} onChange={(e) => setCode(e.target.value)} style={{ paddingLeft: '38px' }} required />
+              </div>
+            </FormField>
+            <Button type="submit" variant="primary" size="lg" isLoading={isLoading} style={{ width: '100%', marginTop: 'var(--space-sm)' }} rightIcon={<ArrowRight size={18} />}>
+              Verify account
+            </Button>
+          </form>
+        </>
+      )}
 
-              <form onSubmit={handleSubmit}>
-                {!initialEmail && (
-                  <FormField label="Work Email" required htmlFor="verify-email">
-                    <Input
-                      id="verify-email"
-                      type="email"
-                      placeholder="employee@company.com"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      required
-                    />
-                  </FormField>
-                )}
-
-                <FormField label="Verification Token" required helperText="Paste the verification token sent to your inbox (or, in development, printed to the server console on signup)" htmlFor="verify-code">
-                  <div style={{ position: 'relative' }}>
-                    <KeyRound size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-slate-400)' }} />
-                    <Input
-                      id="verify-code"
-                      type="text"
-                      placeholder="Paste your verification token"
-                      value={code}
-                      onChange={(e) => setCode(e.target.value)}
-                      style={{ paddingLeft: '40px' }}
-                      required
-                    />
-                  </div>
-                </FormField>
-
-                <Button
-                  type="submit"
-                  variant="primary"
-                  size="lg"
-                  isLoading={isLoading}
-                  style={{ width: '100%', marginTop: 'var(--space-md)' }}
-                  rightIcon={<ArrowRight size={18} />}
-                >
-                  Verify Account & Continue
-                </Button>
-              </form>
-            </>
-          )}
-
-          <div style={{ marginTop: 'var(--space-xl)', textAlign: 'center', fontSize: 'var(--text-sm)', color: 'var(--color-slate-600)' }}>
-            Verified already?{' '}
-            <Link to="/login" style={{ fontWeight: 600, color: 'var(--color-primary-600)' }}>
-              Proceed to Login
-            </Link>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+      <div style={{ marginTop: 'var(--space-xl)', textAlign: 'center', font: 'var(--font-body)', color: 'var(--text-secondary-color)' }}>
+        Already verified? <Link to="/login" style={{ fontWeight: 600 }}>Sign in</Link>
+      </div>
+    </AuthLayout>
   );
 };

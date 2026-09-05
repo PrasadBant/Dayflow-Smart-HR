@@ -1,10 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { FolderOpen, PlusCircle, ExternalLink, RefreshCw } from 'lucide-react';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/primitives/Card';
+import { FolderOpen, PlusCircle, ExternalLink, FileText } from 'lucide-react';
+import { PageHeader } from '../components/primitives/PageHeader';
+import { Card } from '../components/primitives/Card';
 import { FormField, Input, Select } from '../components/primitives/FormField';
 import { Button } from '../components/primitives/Button';
 import { Skeleton } from '../components/primitives/Skeleton';
 import { ErrorBanner } from '../components/primitives/ErrorBanner';
+import { EmptyState } from '../components/primitives/EmptyState';
+import { useToast } from '../components/primitives/Toast';
 import type { Document } from '@shared/types';
 import { getMyDocuments, createDocumentMetadata } from '../api-client/documents';
 import { parseApiError } from '../utils/apiHelper';
@@ -12,6 +15,7 @@ import { parseApiError } from '../utils/apiHelper';
 const DOCUMENT_TYPES = ['Contract', 'ID', 'Tax', 'Certification', 'Other'];
 
 export const DocumentsPage: React.FC = () => {
+  const { showToast } = useToast();
   const [documents, setDocuments] = useState<Document[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -26,8 +30,7 @@ export const DocumentsPage: React.FC = () => {
     setIsLoading(true);
     setLoadError(null);
     try {
-      const res = await getMyDocuments();
-      setDocuments(res);
+      setDocuments(await getMyDocuments());
     } catch (err) {
       setLoadError(parseApiError(err).message);
     } finally {
@@ -35,9 +38,7 @@ export const DocumentsPage: React.FC = () => {
     }
   }, []);
 
-  useEffect(() => {
-    load();
-  }, [load]);
+  useEffect(() => { load(); }, [load]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -53,6 +54,7 @@ export const DocumentsPage: React.FC = () => {
       await createDocumentMetadata({ title: title.trim(), documentType, fileUrl: fileUrl.trim() });
       setTitle('');
       setFileUrl('');
+      showToast('Document added.', 'success');
       await load();
     } catch (err) {
       setFormError(parseApiError(err).message);
@@ -62,61 +64,51 @@ export const DocumentsPage: React.FC = () => {
   };
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 'var(--space-xl)', alignItems: 'start' }}>
-      <Card>
-        <CardHeader>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <PlusCircle size={20} color="var(--color-primary-600)" />
-            <CardTitle>Add Document Metadata</CardTitle>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-xl)' }}>
+      <PageHeader title="Documents" description="Employment records referenced by link — metadata only, no file upload." icon={<FolderOpen size={20} color="var(--color-primary-600)" />} />
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 'var(--space-xl)', alignItems: 'start' }}>
+        <Card>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: 'var(--space-md)' }}>
+            <PlusCircle size={18} color="var(--color-primary-600)" />
+            <h2 style={{ font: 'var(--font-section-title)' }}>Add a document</h2>
           </div>
-          <CardDescription>Record a document reference (metadata only — no file upload)</CardDescription>
-        </CardHeader>
-        <CardContent>
           {formError && <ErrorBanner variant="error" message={formError} />}
           <form onSubmit={handleSubmit}>
             <FormField label="Title" required htmlFor="doc-title">
-              <Input id="doc-title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Employment Contract" required />
+              <Input id="doc-title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Employment contract" required />
             </FormField>
-            <FormField label="Document Type" required htmlFor="doc-type">
+            <FormField label="Document type" required htmlFor="doc-type">
               <Select id="doc-type" value={documentType} onChange={(e) => setDocumentType(e.target.value)}>
-                {DOCUMENT_TYPES.map((t) => (
-                  <option key={t} value={t}>{t}</option>
-                ))}
+                {DOCUMENT_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
               </Select>
             </FormField>
-            <FormField label="File URL" required helperText="Link to the document (metadata only, not uploaded here)" htmlFor="doc-url">
-              <Input id="doc-url" value={fileUrl} onChange={(e) => setFileUrl(e.target.value)} placeholder="https://..." required />
+            <FormField label="File URL" required helperText="Link to the document — this stores a reference only, it doesn't upload a file" htmlFor="doc-url">
+              <Input id="doc-url" value={fileUrl} onChange={(e) => setFileUrl(e.target.value)} placeholder="https://…" required />
             </FormField>
             <Button type="submit" variant="primary" isLoading={isSubmitting} style={{ width: '100%' }}>
-              Add Document
+              Add document
             </Button>
           </form>
-        </CardContent>
-      </Card>
+        </Card>
 
-      <Card>
-        <CardHeader style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <FolderOpen size={20} color="var(--color-primary-500)" />
-            <CardTitle>My Documents</CardTitle>
+        <Card padding="none">
+          <div style={{ padding: 'var(--space-lg) var(--space-lg) var(--space-md)' }}>
+            <h2 style={{ font: 'var(--font-section-title)' }}>Your documents</h2>
           </div>
-          <Button variant="ghost" size="sm" onClick={load} leftIcon={<RefreshCw size={14} />}>Refresh</Button>
-        </CardHeader>
-        <CardContent>
-          {loadError && <ErrorBanner variant="error" message={loadError} onRetry={load} />}
+
+          {loadError && <div style={{ padding: '0 var(--space-lg)' }}><ErrorBanner variant="error" message={loadError} onRetry={load} /></div>}
 
           {isLoading ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-sm)' }}>
-              <Skeleton height="60px" />
-              <Skeleton height="60px" />
+            <div style={{ padding: '0 var(--space-lg) var(--space-lg)', display: 'flex', flexDirection: 'column', gap: 'var(--space-sm)' }}>
+              <Skeleton height="52px" />
+              <Skeleton height="52px" />
             </div>
           ) : documents.length === 0 ? (
-            <div style={{ padding: 'var(--space-2xl)', textAlign: 'center', color: 'var(--color-slate-500)' }}>
-              No documents yet.
-            </div>
+            <EmptyState icon={<FileText size={22} />} title="No documents yet" description="Add a reference using the form to get started." />
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-sm)' }}>
-              {documents.map((d) => (
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              {documents.map((d, i) => (
                 <a
                   key={d.id}
                   href={d.fileUrl}
@@ -126,24 +118,27 @@ export const DocumentsPage: React.FC = () => {
                     display: 'flex',
                     justifyContent: 'space-between',
                     alignItems: 'center',
-                    padding: 'var(--space-sm) var(--space-md)',
-                    borderRadius: 'var(--radius-md)',
-                    border: '1px solid var(--border-color)',
+                    gap: 'var(--space-md)',
+                    padding: 'var(--space-sm) var(--space-lg)',
+                    borderTop: i === 0 ? 'none' : '1px solid var(--border-subtle)',
                     textDecoration: 'none',
                     color: 'inherit',
                   }}
                 >
-                  <div>
-                    <div style={{ fontSize: 'var(--text-sm)', fontWeight: 600 }}>{d.title}</div>
-                    <div style={{ fontSize: 'var(--text-xs)', color: 'var(--color-slate-500)' }}>{d.documentType}</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)', minWidth: 0 }}>
+                    <FileText size={16} color="var(--text-tertiary-color)" style={{ flexShrink: 0 }} />
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ font: 'var(--font-body)', fontWeight: 600, color: 'var(--text-primary-color)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.title}</div>
+                      <div style={{ font: 'var(--font-body-sm)', color: 'var(--text-tertiary-color)' }}>{d.documentType}</div>
+                    </div>
                   </div>
-                  <ExternalLink size={16} color="var(--color-slate-400)" />
+                  <ExternalLink size={15} color="var(--text-tertiary-color)" style={{ flexShrink: 0 }} />
                 </a>
               ))}
             </div>
           )}
-        </CardContent>
-      </Card>
+        </Card>
+      </div>
     </div>
   );
 };

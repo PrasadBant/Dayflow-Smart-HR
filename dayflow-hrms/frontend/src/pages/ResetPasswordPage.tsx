@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
-import { KeyRound, Lock, ArrowRight } from 'lucide-react';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/primitives/Card';
+import { Lock, ArrowRight } from 'lucide-react';
+import { AuthLayout } from '../components/layout/AuthLayout';
 import { FormField, Input } from '../components/primitives/FormField';
 import { Button } from '../components/primitives/Button';
 import { ErrorBanner } from '../components/primitives/ErrorBanner';
@@ -47,85 +47,44 @@ export const ResetPasswordPage: React.FC = () => {
   };
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--bg-page)', padding: 'var(--space-md)' }}>
-      <Card style={{ maxWidth: '440px', width: '100%', padding: 'var(--space-xl)', boxShadow: 'var(--shadow-lg)' }}>
-        <CardHeader style={{ textAlign: 'center', marginBottom: 'var(--space-xl)' }}>
-          <div style={{ width: '48px', height: '48px', borderRadius: 'var(--radius-lg)', backgroundColor: 'var(--color-primary-600)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto var(--space-md)' }}>
-            <KeyRound size={28} color="#ffffff" />
-          </div>
-          <CardTitle style={{ fontSize: 'var(--text-2xl)' }}>Set a New Password</CardTitle>
-          <CardDescription>Choose a new password for your account</CardDescription>
-        </CardHeader>
+    <AuthLayout>
+      <div style={{ marginBottom: 'var(--space-xl)' }}>
+        <h1 style={{ font: 'var(--font-page-title)', color: 'var(--text-primary-color)' }}>Set a new password</h1>
+        <p style={{ font: 'var(--font-body)', color: 'var(--text-secondary-color)', marginTop: '0.25rem' }}>
+          Choose a new password for your account.
+        </p>
+      </div>
 
-        <CardContent>
-          {isSuccess ? (
-            <ErrorBanner
-              variant="success"
-              title="Password Reset Successfully!"
-              message="Redirecting you to the login screen..."
-            />
-          ) : !tokenFromLink ? (
-            <ErrorBanner
-              variant="error"
-              title="Invalid Reset Link"
-              message="This link is missing its reset token. Please request a new password reset."
-            />
-          ) : (
-            <>
-              {errorMessage && <ErrorBanner variant="error" message={errorMessage} />}
+      {isSuccess ? (
+        <ErrorBanner variant="success" title="Password reset" message="Redirecting you to sign in…" />
+      ) : !tokenFromLink ? (
+        <ErrorBanner variant="error" title="Invalid reset link" message="This link is missing its reset token. Please request a new password reset." />
+      ) : (
+        <>
+          {errorMessage && <ErrorBanner variant="error" message={errorMessage} />}
+          <form onSubmit={handleSubmit}>
+            <FormField label="New password" required helperText="8+ characters with at least 1 letter and 1 number" htmlFor="reset-new-password">
+              <div style={{ position: 'relative' }}>
+                <Lock size={17} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-disabled-color)' }} />
+                <Input id="reset-new-password" type="password" placeholder="••••••••" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} style={{ paddingLeft: '38px' }} required />
+              </div>
+            </FormField>
+            <FormField label="Confirm new password" required htmlFor="reset-confirm-password">
+              <div style={{ position: 'relative' }}>
+                <Lock size={17} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-disabled-color)' }} />
+                <Input id="reset-confirm-password" type="password" placeholder="••••••••" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} style={{ paddingLeft: '38px' }} required />
+              </div>
+            </FormField>
+            <Button type="submit" variant="primary" size="lg" isLoading={isLoading} style={{ width: '100%', marginTop: 'var(--space-sm)' }} rightIcon={<ArrowRight size={18} />}>
+              Reset password
+            </Button>
+          </form>
+        </>
+      )}
 
-              <form onSubmit={handleSubmit}>
-                <FormField label="New Password" required helperText="Must be 8+ characters with at least 1 letter and 1 number" htmlFor="reset-new-password">
-                  <div style={{ position: 'relative' }}>
-                    <Lock size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-slate-400)' }} />
-                    <Input
-                      id="reset-new-password"
-                      type="password"
-                      placeholder="••••••••"
-                      value={newPassword}
-                      onChange={(e) => setNewPassword(e.target.value)}
-                      style={{ paddingLeft: '40px' }}
-                      required
-                    />
-                  </div>
-                </FormField>
-
-                <FormField label="Confirm New Password" required htmlFor="reset-confirm-password">
-                  <div style={{ position: 'relative' }}>
-                    <Lock size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-slate-400)' }} />
-                    <Input
-                      id="reset-confirm-password"
-                      type="password"
-                      placeholder="••••••••"
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                      style={{ paddingLeft: '40px' }}
-                      required
-                    />
-                  </div>
-                </FormField>
-
-                <Button
-                  type="submit"
-                  variant="primary"
-                  size="lg"
-                  isLoading={isLoading}
-                  style={{ width: '100%', marginTop: 'var(--space-md)' }}
-                  rightIcon={<ArrowRight size={18} />}
-                >
-                  Reset Password
-                </Button>
-              </form>
-            </>
-          )}
-
-          <div style={{ marginTop: 'var(--space-xl)', textAlign: 'center', fontSize: 'var(--text-sm)', color: 'var(--color-slate-600)' }}>
-            <Link to="/login" style={{ fontWeight: 600, color: 'var(--color-primary-600)' }}>
-              Back to Sign In
-            </Link>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+      <div style={{ marginTop: 'var(--space-xl)', textAlign: 'center', font: 'var(--font-body)', color: 'var(--text-secondary-color)' }}>
+        <Link to="/login" style={{ fontWeight: 600 }}>Back to sign in</Link>
+      </div>
+    </AuthLayout>
   );
 };

@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { RequireAuth, RequireRole } from './components/guards/RequireRole';
 import { AppShell } from './components/layout/AppShell';
+import { ToastProvider } from './components/primitives/Toast';
 
 import { LoginPage } from './pages/LoginPage';
 import { SignupPage } from './pages/SignupPage';
@@ -21,47 +22,49 @@ import { DocumentsPage } from './pages/DocumentsPage';
 export const App: React.FC = () => {
   return (
     <AuthProvider>
-      <BrowserRouter>
-        <Routes>
-          {/* Public Auth Routes */}
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/signup" element={<SignupPage />} />
-          <Route path="/verify-email" element={<VerifyEmailPage />} />
-          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-          <Route path="/reset-password" element={<ResetPasswordPage />} />
+      <ToastProvider>
+        <BrowserRouter>
+          <Routes>
+            {/* Public Auth Routes */}
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/signup" element={<SignupPage />} />
+            <Route path="/verify-email" element={<VerifyEmailPage />} />
+            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+            <Route path="/reset-password" element={<ResetPasswordPage />} />
 
-          {/* Protected Application Routes inside AppShell */}
-          <Route
-            path="/"
-            element={
-              <RequireAuth>
-                <AppShell />
-              </RequireAuth>
-            }
-          >
-            <Route index element={<Navigate to="/dashboard" replace />} />
-            <Route path="dashboard" element={<DashboardPage />} />
-            <Route path="leave" element={<LeavePage />} />
-            <Route path="attendance" element={<AttendancePage />} />
-            <Route path="profile" element={<ProfilePage />} />
-            <Route path="payroll" element={<PayrollPage />} />
-            <Route path="documents" element={<DocumentsPage />} />
-
-            {/* HR Only Protected Route */}
+            {/* Protected Application Routes inside AppShell */}
             <Route
-              path="employees"
+              path="/"
               element={
-                <RequireRole allowedRole="HR">
-                  <EmployeesPage />
-                </RequireRole>
+                <RequireAuth>
+                  <AppShell />
+                </RequireAuth>
               }
-            />
-          </Route>
+            >
+              <Route index element={<Navigate to="/dashboard" replace />} />
+              <Route path="dashboard" element={<DashboardPage />} />
+              <Route path="leave" element={<LeavePage />} />
+              <Route path="attendance" element={<AttendancePage />} />
+              <Route path="profile" element={<ProfilePage />} />
+              <Route path="payroll" element={<PayrollPage />} />
+              <Route path="documents" element={<DocumentsPage />} />
 
-          {/* Fallback wildcard route */}
-          <Route path="*" element={<Navigate to="/dashboard" replace />} />
-        </Routes>
-      </BrowserRouter>
+              {/* HR Only Protected Route */}
+              <Route
+                path="employees"
+                element={
+                  <RequireRole allowedRole="HR">
+                    <EmployeesPage />
+                  </RequireRole>
+                }
+              />
+            </Route>
+
+            {/* Fallback wildcard route */}
+            <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          </Routes>
+        </BrowserRouter>
+      </ToastProvider>
     </AuthProvider>
   );
 };

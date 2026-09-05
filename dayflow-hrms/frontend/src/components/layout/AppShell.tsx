@@ -15,14 +15,41 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { Badge } from '../primitives/Badge';
-import { Button } from '../primitives/Button';
+import { Avatar } from '../primitives/Avatar';
 import '../../design/tokens.css';
+
+interface NavItem {
+  label: string;
+  path: string;
+  icon: React.ReactNode;
+}
+
+const WORKSPACE_ITEMS: NavItem[] = [
+  { label: 'Dashboard', path: '/dashboard', icon: <LayoutDashboard size={17} /> },
+  { label: 'Attendance', path: '/attendance', icon: <Clock size={17} /> },
+  { label: 'Leave', path: '/leave', icon: <CalendarDays size={17} /> },
+  { label: 'Payroll', path: '/payroll', icon: <BadgeDollarSign size={17} /> },
+  { label: 'Documents', path: '/documents', icon: <FolderOpen size={17} /> },
+  { label: 'My Profile', path: '/profile', icon: <UserIcon size={17} /> },
+];
+
+const ADMIN_ITEMS: NavItem[] = [
+  { label: 'Employees', path: '/employees', icon: <Users size={17} /> },
+];
+
+const ALL_NAV_ITEMS = [...WORKSPACE_ITEMS, ...ADMIN_ITEMS];
+
+function currentSectionLabel(pathname: string): string {
+  return ALL_NAV_ITEMS.find((item) => pathname.startsWith(item.path))?.label ?? 'Dayflow';
+}
 
 export const AppShell: React.FC = () => {
   const { user, employee, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
+  const isHR = user?.role === 'HR';
+  const displayName = employee ? `${employee.firstName} ${employee.lastName}` : user?.email || '';
 
   // Route changes (nav link clicks) should close the mobile slide-in panel;
   // otherwise it would stay open covering the page after navigating.
@@ -35,28 +62,33 @@ export const AppShell: React.FC = () => {
     navigate('/login');
   };
 
-  const navItems = [
-    { label: 'Dashboard', path: '/dashboard', icon: <LayoutDashboard size={18} /> },
-    { label: 'Leave Requests', path: '/leave', icon: <CalendarDays size={18} /> },
-    { label: 'Attendance', path: '/attendance', icon: <Clock size={18} /> },
-    { label: 'My Profile', path: '/profile', icon: <UserIcon size={18} /> },
-    { label: 'Payroll', path: '/payroll', icon: <BadgeDollarSign size={18} /> },
-    { label: 'Documents', path: '/documents', icon: <FolderOpen size={18} /> },
-  ];
+  const navLinkStyle = (isActive: boolean): React.CSSProperties => ({
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.6875rem',
+    padding: '0.5rem 0.75rem',
+    borderRadius: 'var(--radius-md)',
+    fontSize: 'var(--text-sm)',
+    fontWeight: isActive ? 600 : 400,
+    color: isActive ? '#ffffff' : 'var(--color-slate-300)',
+    backgroundColor: isActive ? 'rgba(99, 102, 241, 0.18)' : 'transparent',
+    borderLeft: `2px solid ${isActive ? 'var(--color-primary-400)' : 'transparent'}`,
+    paddingLeft: 'calc(0.75rem - 2px)',
+    transition: `background-color var(--transition-fast), color var(--transition-fast)`,
+    textDecoration: 'none',
+  });
 
-  // HR-only navigation item
-  const hrNavItem = { label: 'Employees', path: '/employees', icon: <Users size={18} />, hrOnly: true };
-
-  const getCurrentTitle = () => {
-    const currentPath = location.pathname;
-    if (currentPath.startsWith('/dashboard')) return 'Dashboard Overview';
-    if (currentPath.startsWith('/leave')) return 'Leave Management';
-    if (currentPath.startsWith('/attendance')) return 'Attendance & Time Tracking';
-    if (currentPath.startsWith('/profile')) return 'Employee Profile';
-    if (currentPath.startsWith('/payroll')) return 'Payroll & Compensation';
-    if (currentPath.startsWith('/documents')) return 'Document Repository';
-    if (currentPath.startsWith('/employees')) return 'Employee Directory (HR)';
-    return 'Dayflow HRMS';
+  const sectionLabelStyle: React.CSSProperties = {
+    padding: '0 0.75rem',
+    marginTop: 'var(--space-lg)',
+    marginBottom: 'var(--space-xs)',
+    fontSize: '0.6875rem',
+    fontWeight: 600,
+    // slate-500 measured 3.75:1 against the dark sidebar background (axe
+    // caught it) — under WCAG AA's 4.5:1 minimum. slate-400 clears it.
+    color: 'var(--color-slate-400)',
+    textTransform: 'uppercase',
+    letterSpacing: '0.06em',
   };
 
   return (
@@ -66,186 +98,103 @@ export const AppShell: React.FC = () => {
         <div className="app-sidebar-overlay" onClick={() => setIsMobileNavOpen(false)} />
       )}
 
-      {/* Fixed Sidebar (desktop) / Slide-in panel (mobile, see tokens.css) */}
+      {/* Fixed sidebar (desktop, >1024px) / slide-in panel (narrower, see tokens.css) */}
       <aside
         className={`app-sidebar${isMobileNavOpen ? ' app-sidebar-open' : ''}`}
         style={{
-          width: '260px',
+          width: '248px',
           backgroundColor: 'var(--bg-sidebar)',
-          color: '#ffffff',
           display: 'flex',
           flexDirection: 'column',
           position: 'fixed',
           top: 0,
           bottom: 0,
           left: 0,
-          zIndex: 40,
-          boxShadow: 'var(--shadow-lg)',
+          zIndex: 'var(--z-drawer)' as unknown as number,
         }}
       >
-        {/* Brand Header */}
-        <div
-          style={{
-            padding: 'var(--space-lg)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.75rem',
-            borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
-          }}
-        >
-          <div
-            style={{
-              width: '36px',
-              height: '36px',
-              borderRadius: 'var(--radius-md)',
-              backgroundColor: 'var(--color-primary-500)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <Building2 size={22} color="#ffffff" />
+        {/* Brand */}
+        <div style={{ padding: 'var(--space-md) var(--space-md) var(--space-sm)', display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
+          <div style={{ width: '30px', height: '30px', borderRadius: 'var(--radius-sm)', backgroundColor: 'var(--color-primary-500)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <Building2 size={17} color="#ffffff" />
           </div>
-          <div style={{ flexGrow: 1 }}>
-            <h2 style={{ fontSize: 'var(--text-lg)', fontWeight: 700, color: '#ffffff', letterSpacing: '-0.02em' }}>
-              Dayflow
-            </h2>
-            <span style={{ fontSize: '0.7rem', color: 'var(--color-slate-400)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              HRMS Platform
-            </span>
-          </div>
+          <span style={{ font: 'var(--font-section-title)', color: '#ffffff', fontSize: 'var(--text-base)', letterSpacing: '-0.01em' }}>Dayflow</span>
           <button
             className="app-hamburger"
             onClick={() => setIsMobileNavOpen(false)}
             aria-label="Close menu"
-            style={{ background: 'none', border: 'none', color: '#ffffff', cursor: 'pointer', padding: '0.25rem' }}
+            style={{ background: 'none', border: 'none', color: '#ffffff', cursor: 'pointer', padding: '0.25rem', marginLeft: 'auto' }}
           >
-            <CloseIcon size={22} />
+            <CloseIcon size={20} />
           </button>
         </div>
 
-        {/* Navigation Menu */}
-        <nav style={{ flexGrow: 1, padding: 'var(--space-md) var(--space-sm)', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-          {navItems.map((item) => (
-            <NavLink
-              key={item.path}
-              to={item.path}
-              style={({ isActive }) => ({
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.75rem',
-                padding: '0.75rem 1rem',
-                borderRadius: 'var(--radius-md)',
-                fontSize: 'var(--text-sm)',
-                fontWeight: isActive ? 600 : 400,
-                color: isActive ? '#ffffff' : 'var(--color-slate-400)',
-                backgroundColor: isActive ? 'var(--color-primary-600)' : 'transparent',
-                transition: 'all var(--transition-fast)',
-                textDecoration: 'none',
-              })}
-            >
-              {item.icon}
-              <span>{item.label}</span>
-            </NavLink>
-          ))}
-
-          {/* HR Only Navigation Section */}
-          {user?.role === 'HR' && (
-            <>
-              <div
-                style={{
-                  marginTop: 'var(--space-md)',
-                  marginBottom: 'var(--space-xs)',
-                  paddingLeft: '1rem',
-                  fontSize: '0.6875rem',
-                  fontWeight: 700,
-                  color: 'var(--color-slate-400)',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.05em',
-                }}
-              >
-                HR Administration
-              </div>
-              <NavLink
-                to={hrNavItem.path}
-                style={({ isActive }) => ({
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.75rem',
-                  padding: '0.75rem 1rem',
-                  borderRadius: 'var(--radius-md)',
-                  fontSize: 'var(--text-sm)',
-                  fontWeight: isActive ? 600 : 400,
-                  color: isActive ? '#ffffff' : 'var(--color-purple-100)',
-                  backgroundColor: isActive ? 'var(--color-purple-700)' : 'rgba(168, 85, 247, 0.1)',
-                  transition: 'all var(--transition-fast)',
-                  textDecoration: 'none',
-                })}
-              >
-                {hrNavItem.icon}
-                <span>{hrNavItem.label}</span>
+        {/* Navigation */}
+        <nav style={{ flexGrow: 1, padding: '0 var(--space-sm) var(--space-md)', overflowY: 'auto' }}>
+          <div style={sectionLabelStyle}>Workspace</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.125rem' }}>
+            {WORKSPACE_ITEMS.map((item) => (
+              <NavLink key={item.path} to={item.path} style={({ isActive }) => navLinkStyle(isActive)}>
+                {item.icon}
+                <span>{item.label}</span>
               </NavLink>
+            ))}
+          </div>
+
+          {isHR && (
+            <>
+              <div style={sectionLabelStyle}>Administration</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.125rem' }}>
+                {ADMIN_ITEMS.map((item) => (
+                  <NavLink key={item.path} to={item.path} style={({ isActive }) => navLinkStyle(isActive)}>
+                    {item.icon}
+                    <span>{item.label}</span>
+                  </NavLink>
+                ))}
+              </div>
             </>
           )}
         </nav>
 
-        {/* Sidebar Footer User Info */}
-        <div
-          style={{
-            padding: 'var(--space-md)',
-            borderTop: '1px solid rgba(255, 255, 255, 0.1)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.75rem',
-          }}
-        >
-          <div
-            style={{
-              width: '38px',
-              height: '38px',
-              borderRadius: '50%',
-              // purple-500 with white text was 3.95:1 — under WCAG AA's 4.5:1
-              // minimum for normal text (axe-core caught it on every
-              // authenticated page, since this avatar is in the shared
-              // AppShell). purple-700 keeps the same hue at ~5.9:1.
-              backgroundColor: user?.role === 'HR' ? 'var(--color-purple-700)' : 'var(--color-primary-600)',
-              color: '#ffffff',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontWeight: 600,
-              fontSize: 'var(--text-sm)',
-            }}
-          >
-            {employee ? `${employee.firstName[0]}${employee.lastName[0]}` : user?.email[0].toUpperCase()}
-          </div>
+        {/* User footer */}
+        <div style={{ padding: 'var(--space-md)', borderTop: '1px solid rgba(255, 255, 255, 0.08)', display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
+          <Avatar name={displayName} size="sm" tone={isHR ? 'hr' : 'employee'} />
           <div style={{ flexGrow: 1, overflow: 'hidden' }}>
             <div style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: '#ffffff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              {employee ? `${employee.firstName} ${employee.lastName}` : user?.email}
+              {displayName}
             </div>
             <div style={{ fontSize: 'var(--text-xs)', color: 'var(--color-slate-400)' }}>
-              {user?.employeeCode || 'Employee'}
+              {user?.employeeCode || (isHR ? 'HR Admin' : 'Employee')}
             </div>
           </div>
+          <button
+            onClick={handleLogout}
+            aria-label="Sign out"
+            title="Sign out"
+            style={{ background: 'none', border: 'none', color: 'var(--color-slate-400)', cursor: 'pointer', padding: '0.375rem', display: 'flex', borderRadius: 'var(--radius-sm)', flexShrink: 0 }}
+          >
+            <LogOut size={16} />
+          </button>
         </div>
       </aside>
 
-      {/* Main Layout Area */}
-      <div className="app-main" style={{ flexGrow: 1, marginLeft: '260px', display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-        {/* Topbar */}
+      {/* Main layout area */}
+      <div className="app-main" style={{ flexGrow: 1, marginLeft: '248px', display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+        {/* Topbar — a slim utility bar. The page's own <PageHeader> owns the
+            actual title now, so this never duplicates it. */}
         <header
           style={{
-            height: '64px',
+            height: '56px',
             backgroundColor: 'var(--bg-topbar)',
-            borderBottom: '1px solid var(--border-color)',
+            borderBottom: '1px solid var(--border-subtle)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            padding: '0 var(--space-md)',
+            padding: '0 var(--space-lg)',
             position: 'sticky',
             top: 0,
-            zIndex: 30,
-            boxShadow: 'var(--shadow-sm)',
+            zIndex: 'var(--z-sticky)' as unknown as number,
+            flexShrink: 0,
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)', minWidth: 0 }}>
@@ -253,33 +202,23 @@ export const AppShell: React.FC = () => {
               className="app-hamburger"
               onClick={() => setIsMobileNavOpen(true)}
               aria-label="Open menu"
-              style={{ background: 'none', border: 'none', color: 'var(--color-slate-700)', cursor: 'pointer', padding: '0.25rem', flexShrink: 0 }}
+              style={{ background: 'none', border: 'none', color: 'var(--text-secondary-color)', cursor: 'pointer', padding: '0.25rem', flexShrink: 0 }}
             >
-              <Menu size={22} />
+              <Menu size={20} />
             </button>
-            <h1 style={{ fontSize: 'var(--text-xl)', fontWeight: 700, color: 'var(--color-slate-900)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {getCurrentTitle()}
-            </h1>
+            <span style={{ font: 'var(--font-caption)', color: 'var(--text-tertiary-color)', textTransform: 'uppercase', letterSpacing: '0.05em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {currentSectionLabel(location.pathname)}
+            </span>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-md)' }}>
-            <Badge variant={user?.role === 'HR' ? 'hr' : 'employee'}>
-              {user?.role === 'HR' ? 'HR Admin' : 'Employee'}
-            </Badge>
-
-            <Button
-              variant="outline"
-              size="sm"
-              leftIcon={<LogOut size={16} />}
-              onClick={handleLogout}
-            >
-              Sign Out
-            </Button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-md)', marginLeft: 'auto' }}>
+            <Badge variant={isHR ? 'hr' : 'employee'} dot={false}>{isHR ? 'HR Admin' : 'Employee'}</Badge>
+            <Avatar name={displayName} size="sm" tone={isHR ? 'hr' : 'employee'} />
           </div>
         </header>
 
-        {/* Viewport Content */}
-        <main style={{ flexGrow: 1, padding: 'var(--space-xl)' }}>
+        {/* Viewport content */}
+        <main style={{ flexGrow: 1, padding: 'var(--space-xl)', minWidth: 0 }}>
           <Outlet />
         </main>
       </div>

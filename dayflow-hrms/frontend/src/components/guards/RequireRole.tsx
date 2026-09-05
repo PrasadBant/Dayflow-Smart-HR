@@ -2,8 +2,8 @@ import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import type { Role } from '@shared/types';
-import { ShieldAlert } from 'lucide-react';
-import { Card, CardHeader, CardTitle, CardContent } from '../primitives/Card';
+import { ShieldAlert, Loader2 } from 'lucide-react';
+import { Card } from '../primitives/Card';
 import { Button } from '../primitives/Button';
 
 export interface RequireAuthProps {
@@ -17,7 +17,7 @@ export const RequireAuth: React.FC<RequireAuthProps> = ({ children }) => {
   if (isLoading) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', backgroundColor: 'var(--bg-page)' }}>
-        <div style={{ color: 'var(--color-primary-600)', fontSize: 'var(--text-lg)', fontWeight: 600 }}>Loading Dayflow HRMS...</div>
+        <Loader2 className="animate-spin" size={24} color="var(--color-primary-600)" />
       </div>
     );
   }
@@ -43,24 +43,16 @@ export const RequireRole: React.FC<RequireRoleProps> = ({ allowedRole, children 
 
   if (!hasRole(allowedRole)) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 'var(--space-2xl)' }}>
-        <Card style={{ maxWidth: '500rem', width: '100%', textAlign: 'center', padding: 'var(--space-xl)' }}>
-          <CardHeader>
-            <div style={{ width: '48px', height: '48px', borderRadius: '50%', backgroundColor: 'var(--color-danger-50)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto var(--space-md)' }}>
-              <ShieldAlert size={28} color="var(--color-danger-500)" />
-            </div>
-            <CardTitle>Access Denied (403 Forbidden)</CardTitle>
-          </CardHeader>
-          <CardContent style={{ gap: 'var(--space-md)', display: 'flex', flexDirection: 'column' }}>
-            <p style={{ color: 'var(--color-slate-600)', fontSize: 'var(--text-sm)' }}>
-              This section is restricted to <strong>{allowedRole}</strong> administrators only. Your current account role is <strong>{user.role}</strong>.
-            </p>
-            <div>
-              <Button variant="outline" onClick={() => window.history.back()}>
-                Go Back
-              </Button>
-            </div>
-          </CardContent>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 'var(--space-2xl)', minHeight: '60vh' }}>
+        <Card style={{ maxWidth: '420px', width: '100%', textAlign: 'center', padding: 'var(--space-xl)' }}>
+          <div style={{ width: '48px', height: '48px', borderRadius: '50%', backgroundColor: 'var(--color-danger-50)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto var(--space-md)' }}>
+            <ShieldAlert size={24} color="var(--color-danger-500)" />
+          </div>
+          <h1 style={{ font: 'var(--font-section-title)', fontSize: 'var(--text-lg)', marginBottom: 'var(--space-sm)' }}>Access denied</h1>
+          <p style={{ font: 'var(--font-body)', color: 'var(--text-secondary-color)', marginBottom: 'var(--space-lg)' }}>
+            This section is restricted to <strong>{allowedRole}</strong> administrators. Your account role is <strong>{user.role}</strong>.
+          </p>
+          <Button variant="outline" onClick={() => window.history.back()}>Go back</Button>
         </Card>
       </div>
     );

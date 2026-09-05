@@ -1,21 +1,28 @@
 /* ==========================================================================
-   DAYFLOW HRMS DESIGN SYSTEM TOKENS
+   DAYFLOW HRMS — DESIGN SYSTEM
+   ==========================================================================
+   Additive over the previous token set: every token that already existed
+   keeps its name (so untouched styles never silently break), but several
+   values were refined for a calmer, more "operational software" feel —
+   smaller radii, quieter shadows, restrained color usage — and new tokens
+   were added for things the old system never named (text/surface/border
+   aliases, focus rings, z-index layers, a numeric/tabular font stack).
    ========================================================================== */
 
 :root {
-  /* Brand Color Palette */
+  /* ---- Brand (primary) ------------------------------------------------ */
   --color-primary-50: #eef2ff;
   --color-primary-100: #e0e7ff;
   --color-primary-200: #c7d2fe;
   --color-primary-300: #a5b4fc;
   --color-primary-400: #818cf8;
-  --color-primary-500: #6366f1; /* Primary Brand Accent */
+  --color-primary-500: #6366f1;
   --color-primary-600: #4f46e5;
   --color-primary-700: #4338ca;
   --color-primary-800: #3730a3;
   --color-primary-900: #312e81;
 
-  /* Neutral Slate Palette */
+  /* ---- Neutral (slate) -------------------------------------------------- */
   --color-slate-50: #f8fafc;
   --color-slate-100: #f1f5f9;
   --color-slate-200: #e2e8f0;
@@ -28,93 +35,158 @@
   --color-slate-900: #0f172a;
   --color-slate-950: #020617;
 
-  /* Semantic Status Colors */
-  /* Pending = Amber */
-  --color-warning-50: #fffbebe3;
+  /* ---- Semantic status --------------------------------------------------
+     Pending = amber, Approved/Present = green, Rejected/Absent = red,
+     informational = a distinct blue (kept separate from --color-primary so
+     "this is a notice" and "this is a brand action" never look identical). */
+  --color-warning-50: #fffbeb;
   --color-warning-100: #fef3c7;
   --color-warning-500: #f59e0b;
   --color-warning-700: #b45309;
-  
-  /* Approved = Green */
+
   --color-success-50: #f0fdf4;
   --color-success-100: #dcfce7;
   --color-success-500: #22c55e;
   --color-success-700: #15803d;
 
-  /* Rejected = Red */
   --color-danger-50: #fef2f2;
   --color-danger-100: #fee2e2;
   --color-danger-500: #ef4444;
   --color-danger-700: #b91c1c;
 
-  /* Info / Role HR = Purple */
+  --color-info-50: #f0f9ff;
+  --color-info-100: #e0f2fe;
+  --color-info-500: #0ea5e9;
+  --color-info-700: #0369a1;
+
+  /* HR is a role accent, not a theme — used only for small badges/labels/
+     the sidebar's "Administration" affordance, never as a full-surface tint
+     (that's what made every HR screen look like a different app). */
   --color-purple-50: #faf5ff;
   --color-purple-100: #f3e8ff;
   --color-purple-500: #a855f7;
   --color-purple-700: #7e22ce;
 
-  /* Surface & Background Setup */
+  /* ---- Surfaces ---------------------------------------------------------- */
   --bg-page: var(--color-slate-50);
   --bg-surface: #ffffff;
+  --bg-sunken: var(--color-slate-50);
   --bg-sidebar: var(--color-slate-900);
   --bg-topbar: #ffffff;
-  --border-color: var(--color-slate-200);
+  --bg-overlay: rgba(15, 23, 42, 0.48);
 
-  /* Typography Scale */
+  --border-color: var(--color-slate-200); /* kept for existing call sites */
+  --border-subtle: var(--color-slate-100);
+  --border-default: var(--color-slate-200);
+  --border-strong: var(--color-slate-300);
+
+  /* ---- Text aliases -------------------------------------------------- */
+  --text-primary-color: var(--color-slate-900);
+  --text-secondary-color: var(--color-slate-600);
+  --text-tertiary-color: var(--color-slate-500);
+  --text-disabled-color: var(--color-slate-400);
+  --text-on-dark: rgba(255, 255, 255, 0.92);
+  --text-on-dark-muted: var(--color-slate-400);
+
+  /* ---- Typography ------------------------------------------------------ */
   --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-numeric: 'Inter', -apple-system, sans-serif; /* tabular-nums applied via .font-numeric */
+
   --text-xs: 0.75rem;    /* 12px */
-  --text-sm: 0.875rem;   /* 14px */
-  --text-base: 1rem;     /* 16px */
-  --text-lg: 1.125rem;   /* 18px */
+  --text-sm: 0.8125rem;  /* 13px — dense, table/UI copy density used by mature SaaS products */
+  --text-base: 0.9375rem;/* 15px */
+  --text-lg: 1.0625rem;  /* 17px */
   --text-xl: 1.25rem;    /* 20px */
   --text-2xl: 1.5rem;    /* 24px */
   --text-3xl: 1.875rem;  /* 30px */
 
-  /* Spacing System */
-  --space-xs: 0.25rem;  /* 4px */
-  --space-sm: 0.5rem;   /* 8px */
-  --space-md: 1rem;     /* 16px */
-  --space-lg: 1.5rem;   /* 24px */
-  --space-xl: 2rem;     /* 32px */
-  --space-2xl: 3rem;    /* 48px */
+  /* Semantic aliases for new components — map onto the scale above so old
+     and new code always agree on actual pixel sizes. */
+  --font-page-title: 700 var(--text-2xl) / 1.25 var(--font-family);
+  --font-section-title: 600 var(--text-base) / 1.3 var(--font-family);
+  --font-card-title: 600 var(--text-base) / 1.3 var(--font-family);
+  --font-body: 400 var(--text-sm) / 1.55 var(--font-family);
+  --font-body-sm: 400 var(--text-xs) / 1.5 var(--font-family);
+  --font-caption: 500 var(--text-xs) / 1.4 var(--font-family);
+  --font-label: 600 var(--text-xs) / 1.3 var(--font-family);
+  --font-metric: 700 var(--text-2xl) / 1.15 var(--font-family);
 
-  /* Border Radii */
-  --radius-sm: 0.375rem; /* 6px */
-  --radius-md: 0.5rem;   /* 8px */
-  --radius-lg: 0.75rem;  /* 12px */
-  --radius-xl: 1rem;     /* 16px */
+  /* ---- Spacing ----------------------------------------------------------- */
+  --space-xs: 0.25rem;
+  --space-sm: 0.5rem;
+  --space-md: 1rem;
+  --space-lg: 1.5rem;
+  --space-xl: 2rem;
+  --space-2xl: 3rem;
+  --space-3xl: 4rem;
+
+  /* ---- Radius -------------------------------------------------------------
+     Toned down from the previous scale — large radii read as "consumer app",
+     smaller ones read as operational software. Buttons/inputs/chips keep a
+     visibly rounded corner; cards get a quieter one. */
+  --radius-sm: 0.3125rem;  /* 5px */
+  --radius-md: 0.5rem;     /* 8px */
+  --radius-lg: 0.625rem;   /* 10px — was 12px */
+  --radius-xl: 0.875rem;   /* 14px — was 16px, used sparingly (auth panels) */
   --radius-full: 9999px;
 
-  /* Elevation & Shadows */
-  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  /* ---- Elevation ----------------------------------------------------------
+     Quieter than before: real products lean on a 1px border for everyday
+     surfaces and reserve shadow for things that float above content
+     (menus, modals, drawers, toasts), not for every card on the page. */
+  --shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04), 0 1px 1px rgba(15, 23, 42, 0.03);
+  --shadow-md: 0 4px 10px rgba(15, 23, 42, 0.08), 0 1px 3px rgba(15, 23, 42, 0.06);
+  --shadow-lg: 0 16px 32px rgba(15, 23, 42, 0.14), 0 4px 8px rgba(15, 23, 42, 0.06);
 
-  /* Transitions */
-  --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-normal: 250ms cubic-bezier(0.4, 0, 0.2, 1);
+  /* ---- Focus ---------------------------------------------------------- */
+  --focus-ring-color: var(--color-primary-500);
+  --focus-ring: 0 0 0 3px rgba(99, 102, 241, 0.35);
+
+  /* ---- Motion --------------------------------------------------------- */
+  --transition-fast: 120ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-normal: 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 320ms cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* ---- Layering --------------------------------------------------------
+     A single named scale instead of magic numbers scattered per component
+     (the sidebar/overlay/modal used to hardcode 39/40/50 independently). */
+  --z-sticky: 30;
+  --z-drawer-overlay: 39;
+  --z-drawer: 40;
+  --z-dropdown: 45;
+  --z-modal-overlay: 49;
+  --z-modal: 50;
+  --z-toast: 60;
 }
 
-/* Global Reset & Base Styles */
+/* ==========================================================================
+   Global reset & base
+   ========================================================================== */
 *, *::before, *::after {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
 }
 
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
 body {
   font-family: var(--font-family);
   background-color: var(--bg-page);
-  color: var(--color-slate-800);
+  color: var(--text-primary-color);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* Typography Helpers */
 h1, h2, h3, h4, h5, h6 {
-  color: var(--color-slate-900);
+  color: var(--text-primary-color);
   font-weight: 600;
   line-height: 1.25;
+  letter-spacing: -0.01em;
 }
 
 h1 { font-size: var(--text-2xl); }
@@ -130,7 +202,35 @@ a:hover {
   text-decoration: underline;
 }
 
-/* Utility Animations */
+button {
+  font-family: inherit;
+}
+
+/* Numbers that should align in columns/metrics — tabular figures instead of
+   proportional ones, the single biggest reason a dense table full of prices
+   or dates looks "designed" instead of "default browser table". */
+.font-numeric {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+}
+
+/* A single, visible, consistent focus treatment for every interactive
+   element — buttons/inputs already opt in via inline styles, this covers
+   native anchors and anything else that isn't a primitive. */
+:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: var(--radius-sm);
+}
+
+::selection {
+  background: var(--color-primary-200);
+  color: var(--color-primary-900);
+}
+
+/* ==========================================================================
+   Utility animations
+   ========================================================================== */
 @keyframes spin {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
@@ -138,27 +238,51 @@ a:hover {
 
 @keyframes pulse {
   0%, 100% { opacity: 1; }
-  50% { opacity: 0.4; }
+  50% { opacity: 0.5; }
 }
 
-.animate-spin {
-  animation: spin 1s linear infinite;
+@keyframes df-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
-.animate-pulse {
-  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+@keyframes df-slide-up {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes df-slide-in-right {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+@keyframes df-toast-in {
+  from { opacity: 0; transform: translateY(-8px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.animate-spin { animation: spin 1s linear infinite; }
+.animate-pulse { animation: pulse 1.8s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+.df-fade-in { animation: df-fade-in var(--transition-normal) ease-out; }
+.df-slide-up { animation: df-slide-up var(--transition-normal) ease-out; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 /* ==========================================================================
    RESPONSIVE APP SHELL
-   The sidebar/main split below is real layout (fixed 260px sidebar + a
+   The sidebar/main split is real layout (fixed 260px sidebar + a
    marginLeft: 260px main area), not something inline styles alone can adapt
-   per viewport — hence a real stylesheet + media query here, the one place
-   in the app that needs one. Below 768px the fixed sidebar is replaced by a
-   slide-in panel toggled by a hamburger button (AppShell.tsx), so the main
-   content gets the full viewport width instead of being squeezed into
-   (100vw - 260px), which is what caused every page to overflow horizontally
-   on phone-width viewports.
+   per viewport — hence a real stylesheet + media query here. Below 1024px
+   the fixed sidebar becomes a slide-in panel toggled by a hamburger button
+   (AppShell.tsx), so the main content gets the full viewport width instead
+   of being squeezed into (100vw - 260px).
    ========================================================================== */
 
 .app-hamburger {
@@ -169,14 +293,14 @@ a:hover {
   display: none;
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.5);
-  z-index: 39;
+  background: var(--bg-overlay);
+  z-index: var(--z-drawer-overlay);
 }
 
-@media (max-width: 768px) {
+@media (max-width: 1024px) {
   .app-sidebar {
     transform: translateX(-100%);
-    transition: transform var(--transition-normal);
+    transition: transform var(--transition-slow);
   }
 
   .app-sidebar.app-sidebar-open {
@@ -193,5 +317,58 @@ a:hover {
 
   .app-sidebar-overlay {
     display: block;
+  }
+}
+
+/* Drawer (Employee Context, etc.) — full-height panel sliding from the
+   right on desktop, full-screen on narrow viewports so it never gets
+   clipped or forces horizontal scroll. */
+@media (max-width: 640px) {
+  .df-drawer-panel {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+}
+
+/* Auth screens' brand panel (AuthLayout.tsx) — hidden below the width where
+   showing it would squeeze the actual form uncomfortably. */
+@media (max-width: 900px) {
+  .df-auth-panel {
+    display: none;
+  }
+}
+
+/* Table -> stacked cards below the width a data table can stay readable. */
+@media (max-width: 720px) {
+  .df-table-responsive thead {
+    display: none;
+  }
+  .df-table-responsive tr {
+    display: block;
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-md);
+    margin-bottom: var(--space-sm);
+    padding: var(--space-sm) var(--space-md);
+  }
+  /* Stacked (label above value), not side-by-side: a side-by-side
+     space-between layout clipped longer values — an email address, a job
+     title, an avatar+name row — at the row's right edge instead of
+     wrapping, since the value had no width constraint of its own once it
+     shared the row with a label. Stacking removes that failure mode
+     entirely regardless of how long or how complex a cell's content is. */
+  .df-table-responsive td {
+    display: block;
+    text-align: left !important;
+    border: none !important;
+    padding: 0.375rem 0 !important;
+  }
+  .df-table-responsive td[data-label]:not([data-label=""])::before {
+    content: attr(data-label);
+    display: block;
+    font: var(--font-caption);
+    color: var(--text-tertiary-color);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 0.1875rem;
   }
 }

@@ -1,11 +1,15 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Clock, LogIn, LogOut, RefreshCw } from 'lucide-react';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/primitives/Card';
+import { Clock, LogIn, LogOut, CalendarX2 } from 'lucide-react';
+import { PageHeader } from '../components/primitives/PageHeader';
+import { Card } from '../components/primitives/Card';
 import { Button } from '../components/primitives/Button';
 import { Badge } from '../components/primitives/Badge';
 import { Skeleton } from '../components/primitives/Skeleton';
 import { ErrorBanner } from '../components/primitives/ErrorBanner';
+import { EmptyState } from '../components/primitives/EmptyState';
 import { Pagination } from '../components/primitives/Pagination';
+import { Table, Thead, Tbody, Tr, Th, Td } from '../components/primitives/Table';
+import { useToast } from '../components/primitives/Toast';
 import type { Attendance, Paginated } from '@shared/types';
 import { checkIn, checkOut, getMyAttendance } from '../api-client/attendance';
 import { parseApiError } from '../utils/apiHelper';
@@ -19,14 +23,17 @@ function statusVariant(status: Attendance['status']): 'approved' | 'pending' | '
   return 'default';
 }
 
+function formatTime(iso: string | null | undefined): string {
+  return iso ? new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—';
+}
+
 export const AttendancePage: React.FC = () => {
+  const { showToast } = useToast();
   const [records, setRecords] = useState<Attendance[]>([]);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [actionError, setActionError] = useState<string | null>(null);
-  const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [isCheckingIn, setIsCheckingIn] = useState(false);
   const [isCheckingOut, setIsCheckingOut] = useState(false);
 
@@ -63,130 +70,125 @@ export const AttendancePage: React.FC = () => {
   }, []);
 
   const handleCheckIn = async () => {
-    setActionError(null);
-    setActionMessage(null);
     setIsCheckingIn(true);
     try {
       await checkIn();
-      setActionMessage('Checked in successfully.');
-      await load();
+      showToast('Checked in successfully.', 'success');
+      await load(page);
     } catch (err) {
       const parsed = parseApiError(err);
-      setActionError(
-        parsed.code === 'ALREADY_CHECKED_IN' ? 'You have already checked in today.' : parsed.message
-      );
+      showToast(parsed.code === 'ALREADY_CHECKED_IN' ? 'You have already checked in today.' : parsed.message, 'error');
     } finally {
       setIsCheckingIn(false);
     }
   };
 
   const handleCheckOut = async () => {
-    setActionError(null);
-    setActionMessage(null);
     setIsCheckingOut(true);
     try {
       await checkOut();
-      setActionMessage('Checked out successfully.');
-      await load();
+      showToast('Checked out successfully.', 'success');
+      await load(page);
     } catch (err) {
       const parsed = parseApiError(err);
-      setActionError(
-        parsed.code === 'NOT_CHECKED_IN' ? 'You need to check in before checking out.' : parsed.message
-      );
+      showToast(parsed.code === 'NOT_CHECKED_IN' ? 'You need to check in before checking out.' : parsed.message, 'error');
     } finally {
       setIsCheckingOut(false);
     }
   };
 
+  const isCheckedIn = !!todayRecord?.checkIn && !todayRecord?.checkOut;
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-xl)' }}>
-      <Card>
-        <CardHeader>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <Clock size={24} color="var(--color-success-500)" />
+      <PageHeader title="Attendance" description="Daily check-in, check-out, and your attendance history." icon={<Clock size={20} color="var(--color-success-500)" />} />
+
+      <Card style={{ padding: 'var(--space-lg)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 'var(--space-md)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-md)' }}>
+            <div
+              style={{
+                width: '44px',
+                height: '44px',
+                borderRadius: 'var(--radius-md)',
+                backgroundColor: isCheckedIn ? 'var(--color-success-50)' : 'var(--bg-sunken)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+              }}
+            >
+              <Clock size={22} color={isCheckedIn ? 'var(--color-success-500)' : 'var(--text-tertiary-color)'} />
+            </div>
             <div>
-              <CardTitle>Attendance Tracking</CardTitle>
-              <CardDescription>Daily check-in, check-out, and attendance history</CardDescription>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {actionMessage && <ErrorBanner variant="success" message={actionMessage} />}
-          {actionError && <ErrorBanner variant="error" message={actionError} />}
-
-          <div style={{ display: 'flex', gap: 'var(--space-md)', alignItems: 'center', marginBottom: 'var(--space-lg)' }}>
-            <Button
-              variant="primary"
-              isLoading={isCheckingIn}
-              disabled={!!todayRecord?.checkIn}
-              onClick={handleCheckIn}
-              leftIcon={<LogIn size={16} />}
-            >
-              Check In
-            </Button>
-            <Button
-              variant="outline"
-              isLoading={isCheckingOut}
-              disabled={!todayRecord?.checkIn || !!todayRecord?.checkOut}
-              onClick={handleCheckOut}
-              leftIcon={<LogOut size={16} />}
-            >
-              Check Out
-            </Button>
-            {todayRecord && (
-              <div style={{ fontSize: 'var(--text-sm)', color: 'var(--color-slate-600)' }}>
-                Today: {todayRecord.checkIn ? new Date(todayRecord.checkIn).toLocaleTimeString() : '—'}
-                {' → '}
-                {todayRecord.checkOut ? new Date(todayRecord.checkOut).toLocaleTimeString() : '—'}
+              <div style={{ font: 'var(--font-section-title)' }}>
+                {todayRecord?.checkOut ? 'Shift completed for today' : todayRecord?.checkIn ? 'Currently checked in' : 'Not checked in yet today'}
               </div>
-            )}
-          </div>
-
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-sm)' }}>
-            <h4 style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--color-slate-700)' }}>Recent History</h4>
-            <Button variant="ghost" size="sm" onClick={() => load(page)} leftIcon={<RefreshCw size={14} />}>Refresh</Button>
-          </div>
-
-          {loadError && <ErrorBanner variant="error" message={loadError} onRetry={() => load(page)} />}
-
-          {isLoading ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-sm)' }}>
-              <Skeleton height="50px" />
-              <Skeleton height="50px" />
-            </div>
-          ) : records.length === 0 ? (
-            <div style={{ padding: 'var(--space-2xl)', textAlign: 'center', color: 'var(--color-slate-500)' }}>
-              No attendance records yet. Check in to get started.
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-sm)' }}>
-              {records.map((r) => (
-                <div
-                  key={r.id}
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    padding: 'var(--space-sm) var(--space-md)',
-                    borderRadius: 'var(--radius-md)',
-                    border: '1px solid var(--border-color)',
-                  }}
-                >
-                  <div style={{ fontSize: 'var(--text-sm)', fontWeight: 600 }}>{r.attDate}</div>
-                  <div style={{ fontSize: 'var(--text-xs)', color: 'var(--color-slate-600)' }}>
-                    {r.checkIn ? new Date(r.checkIn).toLocaleTimeString() : '—'}
-                    {' → '}
-                    {r.checkOut ? new Date(r.checkOut).toLocaleTimeString() : '—'}
-                  </div>
-                  <Badge variant={statusVariant(r.status)} size="sm">{r.status}</Badge>
+              {todayRecord?.checkIn && (
+                <div className="font-numeric" style={{ font: 'var(--font-body-sm)', color: 'var(--text-tertiary-color)' }}>
+                  In {formatTime(todayRecord.checkIn)}{todayRecord.checkOut && <> · Out {formatTime(todayRecord.checkOut)}</>}
                 </div>
-              ))}
+              )}
             </div>
-          )}
-          {!isLoading && records.length > 0 && (
+          </div>
+          <div style={{ display: 'flex', gap: 'var(--space-sm)' }}>
+            <Button variant="primary" isLoading={isCheckingIn} disabled={!!todayRecord?.checkIn} onClick={handleCheckIn} leftIcon={<LogIn size={16} />}>
+              Check in
+            </Button>
+            <Button variant="outline" isLoading={isCheckingOut} disabled={!todayRecord?.checkIn || !!todayRecord?.checkOut} onClick={handleCheckOut} leftIcon={<LogOut size={16} />}>
+              Check out
+            </Button>
+          </div>
+        </div>
+      </Card>
+
+      <Card padding="none">
+        <div style={{ padding: 'var(--space-lg) var(--space-lg) var(--space-md)' }}>
+          <h2 style={{ font: 'var(--font-section-title)' }}>History</h2>
+        </div>
+
+        {loadError && <div style={{ padding: '0 var(--space-lg)' }}><ErrorBanner variant="error" message={loadError} onRetry={() => load(page)} /></div>}
+
+        {isLoading ? (
+          <div style={{ padding: '0 var(--space-lg) var(--space-lg)', display: 'flex', flexDirection: 'column', gap: 'var(--space-sm)' }}>
+            <Skeleton height="40px" />
+            <Skeleton height="40px" />
+            <Skeleton height="40px" />
+          </div>
+        ) : records.length === 0 ? (
+          <EmptyState
+            icon={<CalendarX2 size={22} />}
+            title="No attendance records yet"
+            description="Check in above to start building your attendance history."
+          />
+        ) : (
+          <Table>
+            <Thead>
+              <Tr>
+                <Th>Date</Th>
+                <Th>Check in</Th>
+                <Th>Check out</Th>
+                <Th>Status</Th>
+              </Tr>
+            </Thead>
+            <Tbody>
+              {records.map((r) => (
+                <Tr key={r.id}>
+                  <Td label="Date" style={{ fontWeight: 600 }}>{r.attDate}</Td>
+                  <Td label="Check in" numeric className="font-numeric">{formatTime(r.checkIn)}</Td>
+                  <Td label="Check out" numeric className="font-numeric">{formatTime(r.checkOut)}</Td>
+                  <Td label="Status"><Badge variant={statusVariant(r.status)} size="sm">{r.status}</Badge></Td>
+                </Tr>
+              ))}
+            </Tbody>
+          </Table>
+        )}
+
+        {!isLoading && records.length > 0 && (
+          <div style={{ padding: '0 var(--space-lg) var(--space-lg)' }}>
             <Pagination page={page} pageSize={PAGE_SIZE} total={total} onPageChange={load} />
-          )}
-        </CardContent>
+          </div>
+        )}
       </Card>
     </div>
   );

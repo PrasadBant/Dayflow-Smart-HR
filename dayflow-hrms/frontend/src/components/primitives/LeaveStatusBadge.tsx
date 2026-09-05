@@ -33,7 +33,7 @@ export const LeaveStatusBadge: React.FC<LeaveStatusBadgeProps> = ({ status, size
   const { variant, icon } = getProps();
 
   return (
-    <Badge variant={variant} size={size}>
+    <Badge variant={variant} size={size} dot={false}>
       {icon}
       <span>{status}</span>
     </Badge>

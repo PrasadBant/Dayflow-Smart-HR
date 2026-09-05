@@ -58,14 +58,16 @@ export const ErrorBanner: React.FC<ErrorBannerProps> = ({
   const containerStyle: React.CSSProperties = {
     display: 'flex',
     alignItems: 'flex-start',
-    gap: '0.75rem',
-    padding: 'var(--space-md)',
+    gap: '0.625rem',
+    padding: '0.75rem var(--space-md)',
     borderRadius: 'var(--radius-md)',
     backgroundColor: v.bg,
-    borderLeft: `4px solid ${v.border}`,
+    border: `1px solid ${v.border}`,
+    borderLeft: `3px solid ${v.border}`,
     color: v.color,
     marginBottom: 'var(--space-md)',
     fontSize: 'var(--text-sm)',
+    lineHeight: 1.5,
     ...style,
   };
 

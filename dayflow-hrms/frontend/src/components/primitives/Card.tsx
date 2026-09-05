@@ -25,8 +25,8 @@ export const Card: React.FC<CardProps> = ({
   const cardStyle: React.CSSProperties = {
     backgroundColor: 'var(--bg-surface)',
     borderRadius: 'var(--radius-lg)',
-    border: '1px solid var(--border-color)',
-    boxShadow: 'var(--shadow-sm)',
+    border: '1px solid var(--border-default)',
+    boxShadow: 'var(--shadow-xs)',
     padding: getPadding(),
     overflow: 'hidden',
     ...style,
