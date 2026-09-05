@@ -7,9 +7,9 @@ services:
     container_name: dayflow-db
     restart: always
     environment:
-      POSTGRES_USER: dayflow_user
-      POSTGRES_PASSWORD: dayflow_password
-      POSTGRES_DB: dayflow_db
+      POSTGRES_USER: ${POSTGRES_USER:-dayflow_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-dayflow_password}
+      POSTGRES_DB: ${POSTGRES_DB:-dayflow_db}
     ports:
       - "5432:5432"
     volumes:
@@ -33,8 +33,17 @@ services:
     restart: always
     environment:
       PORT: 5000
-      DATABASE_URL: postgres://dayflow_user:dayflow_password@db:5432/dayflow_db
-      JWT_SECRET: 5371e0d1eb814ece68a485c1ecf1905622c4f51044de40973f8141cfe8f75fd8
+      # Connects as the dedicated non-superuser `dayflow_app` role (created by
+      # database/a7_rls.sql), NOT the POSTGRES_USER above — that user is the
+      # postgres image's initdb superuser, and superusers always bypass row
+      # level security regardless of FORCE ROW LEVEL SECURITY. Connecting as
+      # dayflow_app is what makes the RLS policies actually apply to the
+      # app's real traffic instead of being decorative.
+      DATABASE_URL: postgres://${APP_DB_USER:-dayflow_app}:${APP_DB_PASSWORD:-dayflow_app_password}@db:5432/${POSTGRES_DB:-dayflow_db}
+      # No secret is hardcoded here. Override JWT_SECRET via a root .env file
+      # (see .env.example) for any non-throwaway-local run; this fallback is a
+      # freshly-generated, non-production value with no prior exposure.
+      JWT_SECRET: ${JWT_SECRET:-1269c1c80fdd94015120dac69e2c28f3de3d3519db5aed5ebfe08a862eb6f8ac}
       FRONTEND_ORIGIN: http://localhost:3000
       NODE_ENV: production
     ports:

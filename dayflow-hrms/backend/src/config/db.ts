@@ -1,5 +1,6 @@
 import { Pool, QueryResult } from 'pg';
 import { env } from './env';
+import { requestContext } from './requestContext';
 
 // Shared PostgreSQL Pool instance
 export const pool = new Pool({
@@ -9,18 +10,34 @@ export const pool = new Pool({
   connectionTimeoutMillis: 2000,
 });
 
-/**
- * Reusable query execution helper for backend repositories/services.
- */
-export const query = async (text: string, params?: unknown[]): Promise<QueryResult> => {
-  return pool.query(text, params);
-};
-
 export interface DbUserContext {
   userId?: string;
   employeeId?: string;
   role?: string;
 }
+
+/**
+ * Reusable query execution helper for backend repositories/services.
+ *
+ * RLS enforcement: the pool connects as the non-superuser `dayflow_app` role
+ * (see database/a7_rls.sql), so every table with FORCE ROW LEVEL SECURITY
+ * actually applies its policy here — unlike the previous superuser
+ * connection, which silently bypassed RLS for all real traffic regardless of
+ * policy content. If the current request has an authenticated context (set
+ * by requireAuth via ../config/requestContext.ts), each call runs inside its
+ * own short transaction with that context applied via set_config, so
+ * existing repository code needs no changes to get real RLS coverage.
+ * Requests with no context (signup/login, before requireAuth runs) fall back
+ * to a bare pool query — those repositories already call
+ * withDbContext({ role: 'SYSTEM_AUTH' }, ...) explicitly instead.
+ */
+export const query = async (text: string, params?: unknown[]): Promise<QueryResult> => {
+  const ctx = requestContext.getStore();
+  if (!ctx) {
+    return pool.query(text, params);
+  }
+  return withDbContext(ctx, (q) => q(text, params));
+};
 
 /**
  * Executes database operations within a pool client session configured with RLS context variables.

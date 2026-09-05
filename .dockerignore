@@ -1,0 +1,12 @@
+**/node_modules
+**/dist
+**/build
+**/.vite
+**/coverage
+**/.git
+**/.env
+**/.env.*
+!**/.env.example
+**/*.log
+**/playwright-report
+**/test-results

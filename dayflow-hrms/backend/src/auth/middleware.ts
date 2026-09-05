@@ -2,6 +2,7 @@ import { Request, Response, NextFunction, RequestHandler } from 'express';
 import { verifyToken, JwtPayload } from './jwt';
 import type { Role } from '../../../shared/types';
 import { AppError } from './errors/AppError';
+import { requestContext } from '../config/requestContext';
 
 // Express Request augmentation for authenticated user context
 declare global {
@@ -31,7 +32,13 @@ export const requireAuth: RequestHandler = (req: Request, _res: Response, next: 
 
     const payload = verifyToken(token);
     req.user = payload;
-    next();
+    // Every query() call made while handling this request (see ../config/db.ts)
+    // picks this up automatically and applies it as the RLS session context —
+    // this is what makes row-level security actually enforce per-request,
+    // instead of relying solely on the application-level role checks below.
+    requestContext.run({ userId: payload.userId, employeeId: payload.employeeId, role: payload.role }, () => {
+      next();
+    });
   } catch (error) {
     next(error);
   }

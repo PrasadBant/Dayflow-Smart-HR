@@ -20,6 +20,12 @@ WORKDIR /app/dayflow-hrms/backend
 RUN npm ci --ignore-scripts || npm install
 RUN npm run build || npx tsc
 
+# Run as the image's built-in unprivileged user rather than root — the
+# process never needs root (binds an unprivileged port, no host device/file
+# access), so there's no reason to grant it.
+RUN chown -R node:node /app
+USER node
+
 EXPOSE 5000
 CMD ["node", "dist/backend/src/index.js"]
 

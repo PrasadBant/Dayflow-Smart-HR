@@ -1,6 +1,7 @@
 import express, { Request, Response, NextFunction, Application } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
 import { env } from './config/env';
 import apiRouter from './routes';
 
@@ -20,6 +21,23 @@ app.use(
 // Body Parsers
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+/**
+ * Brute-force / credential-stuffing protection on the auth surface.
+ * Applied ahead of the API router so it covers /api/auth/* only, not every
+ * endpoint (a global limit would let one noisy authenticated client starve
+ * others). Keyed by IP (default) — good enough for a single-instance deploy;
+ * a multi-instance deploy behind a load balancer would need a shared store
+ * (e.g. Redis) instead of the in-memory default, called out in the report.
+ */
+const authRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: { code: 'RATE_LIMITED', message: 'Too many requests. Please try again later.' } },
+});
+app.use('/api/auth', authRateLimiter);
 
 // GET /health Endpoint
 app.get('/health', (_req: Request, res: Response) => {

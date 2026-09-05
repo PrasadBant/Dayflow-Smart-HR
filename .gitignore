@@ -1,0 +1,4 @@
+# Root-level env overrides for docker-compose (never commit real secrets)
+.env
+.env.local
+.env.*.local
