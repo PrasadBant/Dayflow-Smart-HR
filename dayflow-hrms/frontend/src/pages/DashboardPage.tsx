@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/primitives/Card';
 import { Badge } from '../components/primitives/Badge';
 import { Button } from '../components/primitives/Button';
-import { CalendarDays, Clock, User, Users, BadgeDollarSign, FolderOpen, ArrowRight } from 'lucide-react';
+import { CalendarDays, Clock, User, Users, ArrowRight } from 'lucide-react';
 
 export const DashboardPage: React.FC = () => {
   const { user, employee } = useAuth();

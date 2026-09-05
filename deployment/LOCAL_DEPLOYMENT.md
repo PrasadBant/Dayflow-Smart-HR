@@ -43,21 +43,25 @@ docker compose ps
    ```bash
    createdb -U postgres dayflow_db
    ```
-2. Execute schema & seed scripts:
+2. Execute schema, seed, and RLS scripts:
    ```bash
    psql -U postgres -d dayflow_db -f dayflow-hrms/database/schema.sql
    psql -U postgres -d dayflow_db -f dayflow-hrms/database/seed.sql
+   psql -U postgres -d dayflow_db -f dayflow-hrms/database/a7_rls.sql
    ```
+   The third script creates the `dayflow_app` role `DATABASE_URL` below connects as — don't skip it, the backend won't be able to connect without that role existing.
 
 ### Step 2: Configure Environment Variables
 
 Create `.env` file inside `dayflow-hrms/backend/.env`:
 ```env
 PORT=5000
-DATABASE_URL=postgres://postgres:password@localhost:5432/dayflow_db
-JWT_SECRET=development-jwt-secret-key-32chars-min
+DATABASE_URL=postgres://dayflow_app:dayflow_app_password@localhost:5432/dayflow_db
+JWT_SECRET=generate-your-own-with-openssl-rand-hex-32
 NODE_ENV=development
+FRONTEND_ORIGIN=http://localhost:5173
 ```
+`FRONTEND_ORIGIN` is required — `backend/src/config/env.ts` refuses to start without it. Match it to wherever Vite's dev server actually serves the frontend (see Step 4 — it may be `5173`, not `3000`, outside Docker).
 
 Create `.env` file inside `dayflow-hrms/frontend/.env`:
 ```env
@@ -99,10 +103,7 @@ Frontend will start on `http://localhost:3000` or `http://localhost:5173`.
 Ensure backend service is running on `http://localhost:5000`, then execute:
 
 ```bash
-# Execute full E2E Integration Suite
-npx ts-node dayflow-hrms/tests/e2e/25-endpoint-audit.test.ts
-npx ts-node dayflow-hrms/tests/e2e/leave-slice.test.ts
-npx ts-node dayflow-hrms/tests/e2e/attendance-slice.test.ts
-npx ts-node dayflow-hrms/tests/e2e/auth-flow.test.ts
-npx ts-node dayflow-hrms/tests/e2e/idor.test.ts
+# From dayflow-hrms/ — runs all seven suites in one pass (see scripts/run-all-e2e-tests.ts)
+npm run e2e
 ```
+This includes `rls-security.test.ts` and `master-regression.test.ts` in addition to the five suites listed above in earlier versions of this guide. `rls-security.test.ts` connects to Postgres directly as `dayflow_app`, so `DATABASE_URL` needs to actually reach your database (adjust it if you're not running against `localhost:5432`).

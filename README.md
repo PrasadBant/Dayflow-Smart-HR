@@ -115,7 +115,9 @@ The `db` service initializes from `schema.sql`, `seed.sql`, and `a7_rls.sql` on 
 createdb -U postgres dayflow_db
 psql -U postgres -d dayflow_db -f dayflow-hrms/database/schema.sql
 psql -U postgres -d dayflow_db -f dayflow-hrms/database/seed.sql
+psql -U postgres -d dayflow_db -f dayflow-hrms/database/a7_rls.sql
 ```
+The third file creates the `dayflow_app` role and RLS policies that `DATABASE_URL` below connects as — running only the first two (schema + seed) leaves that role nonexistent, so don't skip it even for local/throwaway use.
 
 **Backend** (`dayflow-hrms/backend`):
 ```bash
@@ -142,8 +144,9 @@ npm run dev
 | `FRONTEND_ORIGIN` | backend | Exact origin allowed by CORS |
 | `NODE_ENV` | backend | `development` \| `production` |
 | `VITE_API_URL` | frontend | Base API URL the browser calls (e.g. `http://localhost:5000/api`) |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` | backend | Optional. Without them, verification/password-reset emails are logged to the backend console instead of sent — see [Authentication & authorization](#authentication--authorization) |
 
-A working set of local defaults is in `deployment/env.template`.
+A working set of local defaults is in `deployment/env.template`. The Docker Compose stack (`docker-compose.yml`) additionally reads `POSTGRES_USER`/`POSTGRES_PASSWORD`/`POSTGRES_DB` (the database's own superuser, used only for schema initialization) and `APP_DB_USER`/`APP_DB_PASSWORD` (the non-superuser role the backend actually connects as — see [Authentication & authorization](#authentication--authorization) for why that distinction matters) from an optional root-level `.env` file; see `.env.example`. Running `docker compose up` with no `.env` at all works out of the box using built-in fallback values meant for local/demo use only — the backend logs a loud warning at startup if any of them are still in effect under `NODE_ENV=production`.
 
 ## API overview
 
@@ -151,7 +154,7 @@ All 25 endpoints in `CONTRACT.md` are implemented, mounted under `/api`:
 
 | Resource | Endpoints |
 |---|---|
-| Auth | `POST /auth/signup`, `POST /auth/login`, `POST /auth/verify-email`, `POST /auth/resend-verification` |
+| Auth | `POST /auth/signup`, `POST /auth/login`, `POST /auth/verify-email`, `POST /auth/resend-verification`, `POST /auth/forgot-password`, `POST /auth/reset-password` |
 | Employees | `GET/PATCH /employees/me`, `GET /employees` (HR), `PATCH /employees/:id` (HR), `GET /employees/recent-activity`, `GET /employees/switch-context/:id` (HR) |
 | Departments | `GET /departments` |
 | Leave | `POST /leave-requests`, `GET /leave-requests/me`, `GET /leave-requests` (HR), `PATCH /leave-requests/:id` (HR) |
@@ -178,8 +181,11 @@ Every response follows `shared/types.ts`'s shapes exactly. Errors use a single e
 - JWTs are signed with HS256, carry `{ userId, employeeId, role }`, and expire after 8 hours. Pass as `Authorization: Bearer <token>`.
 - Passwords are hashed with bcrypt (10 rounds) and must be 8+ characters with at least one letter and one digit.
 - `POST /auth/signup` always creates an `EMPLOYEE` — any `role` field in the request body is ignored, not just rejected; there is no code path that reads it. New employees default to the `Unassigned` department and `Employee` position, correctable later via `PATCH /employees/:id`.
-- Unverified accounts (`emailVerified = false`) get `403 EMAIL_NOT_VERIFIED` on login. In this environment, no mail service is wired up — the verification token is printed to the backend's console log on signup for local/demo use.
+- Unverified accounts (`emailVerified = false`) get `403 EMAIL_NOT_VERIFIED` on login. Signup and `resend-verification` send a real email via `nodemailer` when `SMTP_*` is configured; without it, the link is logged to the backend console instead, and the API response says so explicitly rather than claiming an email was sent.
+- **Password reset** (`forgot-password` / `reset-password`): a random 32-byte token is hashed (SHA-256) before being stored, expires after 1 hour, and is single-use — a successful reset clears the stored hash so the same token can't be replayed. Both endpoints are enumeration-safe (the response never reveals whether an account exists) and share the same rate limiter as login/signup.
+- `/api/auth/*` is rate-limited (20 requests / 15 minutes / IP, in-memory — sufficient for a single backend instance; a multi-instance deployment behind a load balancer would need a shared store such as Redis instead).
 - Every route that takes an `:id`/`:employeeId` path parameter is gated `HR Only`; there is no "employee accessing their own ID via a shared route" case in this contract, so role-checking middleware doubles as the IDOR boundary. `/me` routes derive the acting employee from the JWT, never from client input.
+- **Row-level security** (`database/a7_rls.sql`) is a real, enforced second boundary, not just documentation: the backend connects to Postgres as the dedicated non-superuser `dayflow_app` role (never the superuser Docker Compose provisions the database with), and every query automatically carries the request's role/employee id as Postgres session context (`backend/src/config/requestContext.ts`, applied transparently in `db.ts`). `tests/e2e/rls-security.test.ts` verifies this directly against the database, independent of the application-level `requireAuth`/`requireRole` middleware.
 
 ## Core business rules
 
@@ -204,7 +210,15 @@ npx ts-node tests/signup.test.ts
 ```
 There is no `npm test` script — the four files above are self-contained scripts (no external test runner), each printing a pass/fail summary. All four are green as of this commit.
 
-**Cross-service E2E** (`dayflow-hrms/tests/e2e/`): these scripts drive the real backend and a real Postgres instance through the frontend's own API client (`auth-flow`, `leave-slice`, `attendance-slice`, `idor`, `25-endpoint-audit`, `master-regression`). A root-level `package.json`/`tsconfig.json` at `dayflow-hrms/` makes them resolvable, but running them end-to-end currently requires a `ts-node` version compatible with your Node runtime — see [Known limitations](#known-limitations).
+**Frontend** (`dayflow-hrms/frontend`):
+```bash
+npm run lint
+npm run build   # runs tsc, then vite build
+```
+
+**Cross-service E2E** (`dayflow-hrms/tests/e2e/`): these scripts drive the real backend and a real Postgres instance through the frontend's own API client (`auth-flow`, `leave-slice`, `attendance-slice`, `idor`, `25-endpoint-audit`, `master-regression`, `rls-security`). Run them all with `npm run e2e` from `dayflow-hrms/`, against a running `docker compose` stack — `DATABASE_URL` and `VITE_API_URL` need to actually reach that stack (e.g. `localhost` if ports are published to the host, or the compose service names `db`/`backend` from a container on the same Docker network). See `.github/workflows/ci.yml`'s `e2e` job for a copy-pasteable example of the latter.
+
+**CI** (`.github/workflows/ci.yml`): three jobs — `backend` (typecheck, build, the four unit-test scripts, `npm audit`), `frontend` (lint, typecheck, build, `npm audit`), and `e2e` (builds and starts the real Docker Compose stack with no `.env` overrides, then runs the full E2E suite against it — the only gate that exercises the real database/RLS/container wiring end-to-end).
 
 ## Seeded accounts
 
@@ -219,6 +233,7 @@ Available once `seed.sql` has run (password is the same for all three):
 ## Known limitations
 
 - **E2E test runner / Node version coupling.** The `tests/e2e/` scripts import directly from `frontend/src/api-client/`. On very new Node releases with native TypeScript handling, this can conflict with the pinned `ts-node@10.9.2`. If you hit this, either run the individual backend test scripts above (which are unaffected — they stay entirely within `backend/`), or upgrade `ts-node`/switch to `tsx` at the `dayflow-hrms/` root.
-- **`a7_rls.sql` is defense-in-depth, not the primary access control.** The application connects to Postgres as a role with `BYPASSRLS`, so these policies apply to the dedicated `dayflow_app` role (exercised by `tests/e2e/rls-security.test.ts`) rather than the app's own connection. The real authorization boundary is the `requireAuth`/`requireRole` middleware in `backend/src/auth/middleware.ts`.
-- **No outbound email.** Signup and resend-verification mint a real, time-limited token but only log it server-side. Wiring an actual mail provider is a deliberate follow-up, not an oversight.
-- **Attendance, payroll, documents, and employee-directory UI screens are intentionally static placeholders** pending further frontend work; their backend endpoints and typed API client functions are complete and independently testable.
+- **No password-reset UI is a thing of the past, but no self-service account recovery beyond it exists** — HR can correct an employee's profile fields via `PATCH /employees/:id`, but there's no admin "force password reset" flow; a locked-out user must use `forgot-password` themselves.
+- **Email delivery is optional infrastructure, not application logic.** Without `SMTP_*` configured, verification and password-reset links work correctly but only reach the backend's console log — fine for local/demo use, not for onboarding real users. The application never pretends an email was sent when it wasn't; the API response is explicit about which mode it's running in.
+- **The in-memory auth rate limiter is single-instance.** Correct for the one-container-per-service deployment this repo ships; a horizontally-scaled deployment behind a load balancer would need a shared store (e.g. Redis) for the limit to apply across instances rather than per-instance.
+- **No backup/restore strategy is implemented or documented beyond Postgres's own named Docker volume.** Treat this as an external operational responsibility for any real deployment.

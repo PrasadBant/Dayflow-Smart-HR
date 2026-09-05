@@ -2,10 +2,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   CalendarDays,
   PlusCircle,
-  Clock,
   CheckCircle2,
   XCircle,
-  AlertCircle,
   RefreshCw,
   MessageSquare,
   UserCheck
