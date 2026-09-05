@@ -4,6 +4,7 @@ import { hashPassword, verifyPassword } from '../auth/hash';
 import { signToken } from '../auth/jwt';
 import { env } from '../config/env';
 import { AppError } from '../auth/errors/AppError';
+import { Mailer } from './mailer.service';
 import type {
   LoginRequest,
   SignupRequest,
@@ -98,11 +99,14 @@ export const AuthService = {
         employeeCode: dto.employeeCode,
       });
 
-      // Mirrors resendVerification: mint + log a verification token so a
-      // fresh signup can actually complete the flow in dev/demo without a
-      // separate resend call. Same "no mailer dependency" TODO applies.
+      // Mirrors resendVerification: mint + attempt delivery of a verification
+      // token so a fresh signup can complete the flow without a separate
+      // resend call. Falls back to a logged link when no SMTP is configured
+      // (see mailer.service.ts) — signup's response shape is `{ user }` only
+      // per contract, so there's nowhere to surface delivered/not-delivered
+      // here; resendVerification is the retry path if the email never arrives.
       const token = signVerificationToken(userRow.id);
-      console.log(`[DEV] Email verification token for ${dto.email}: ${token}`);
+      await Mailer.sendVerificationEmail(dto.email, token);
 
       return { user: mapUserRow(userRow) };
     } catch (err: any) {
@@ -167,19 +171,27 @@ export const AuthService = {
       ]);
     }
 
-    // Always return the same generic message to avoid leaking whether an
-    // account exists for this email (enumeration protection).
-    const genericMessage =
-      'If an account with that email exists and is not yet verified, a verification link has been sent.';
-
     const userRow = await AuthRepository.findUserByEmail(dto.email);
     if (userRow && !userRow.email_verified) {
       const token = signVerificationToken(userRow.id);
-      // TODO: wire a real email service (out of Person B's scope — no mailer
-      // dependency exists yet). Logged for local/demo use in the meantime.
-      console.log(`[DEV] Email verification token for ${dto.email}: ${token}`);
+      await Mailer.sendVerificationEmail(dto.email, token);
     }
 
-    return { message: genericMessage };
+    // The message must depend ONLY on whether this server has real email
+    // delivery configured — a fact that's the same for every caller — never
+    // on whether this particular account exists, or the branch choice itself
+    // would leak account existence (the whole point of the generic wording).
+    // Whether delivery is configured is still something real, though: saying
+    // "a verification link has been sent" when nothing was ever emailed
+    // (because no SMTP is configured at all) is a fabricated success.
+    return Mailer.isConfigured()
+      ? {
+          message: 'If an account with that email exists and is not yet verified, a verification link has been sent.',
+        }
+      : {
+          message:
+            'If an account with that email exists and is not yet verified, a verification link was generated, ' +
+            'but this server has no email delivery configured — check the server logs for the link.',
+        };
   },
 };

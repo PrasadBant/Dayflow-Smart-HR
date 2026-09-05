@@ -11,6 +11,13 @@ export interface EnvConfig {
   PORT: number;
   FRONTEND_ORIGIN: string;
   NODE_ENV: string;
+  /** All optional: without them, verification email delivery falls back to a
+   *  logged link instead of a real send (see ../services/mailer.service.ts). */
+  SMTP_HOST?: string;
+  SMTP_PORT?: number;
+  SMTP_USER?: string;
+  SMTP_PASS?: string;
+  SMTP_FROM?: string;
 }
 
 function loadEnv(): EnvConfig {
@@ -49,12 +56,23 @@ function loadEnv(): EnvConfig {
     throw new Error(`[EnvConfig] Missing or invalid required environment variable(s): ${missing.join(', ')}`);
   }
 
+  const SMTP_HOST = process.env.SMTP_HOST?.trim() || undefined;
+  const SMTP_PORT = process.env.SMTP_PORT?.trim() ? parseInt(process.env.SMTP_PORT.trim(), 10) : undefined;
+  const SMTP_USER = process.env.SMTP_USER?.trim() || undefined;
+  const SMTP_PASS = process.env.SMTP_PASS?.trim() || undefined;
+  const SMTP_FROM = process.env.SMTP_FROM?.trim() || undefined;
+
   return {
     DATABASE_URL: DATABASE_URL!,
     JWT_SECRET: JWT_SECRET!,
     PORT,
     FRONTEND_ORIGIN: FRONTEND_ORIGIN!,
     NODE_ENV,
+    SMTP_HOST,
+    SMTP_PORT,
+    SMTP_USER,
+    SMTP_PASS,
+    SMTP_FROM,
   };
 }
 

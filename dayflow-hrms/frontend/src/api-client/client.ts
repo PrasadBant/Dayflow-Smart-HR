@@ -1,20 +1,6 @@
 import type { ErrorCode, ApiErrorDetail, ApiError } from '@shared/types';
 
 /**
- * Global mock mode flag.
- * Default is `false` for Phase D4 so production/integration path hits the real backend.
- */
-export let USE_MOCKS = false;
-
-export function setUseMocks(useMocks: boolean): void {
-  USE_MOCKS = useMocks;
-}
-
-export function getUseMocks(): boolean {
-  return USE_MOCKS;
-}
-
-/**
  * Shared with AuthContext.tsx (imports this same constant) so there is
  * exactly one place the session token lives: localStorage. Previously the
  * token was a plain in-memory module variable, set only at the moment
@@ -185,11 +171,4 @@ export async function request<T>(path: string, options: RequestInit = {}): Promi
   }
 
   return response.json();
-}
-
-/**
- * Helper to simulate network latency for mock data.
- */
-export function mockDelay<T>(data: T, delayMs = 100): Promise<T> {
-  return new Promise((resolve) => setTimeout(() => resolve(data), delayMs));
 }

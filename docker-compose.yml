@@ -46,6 +46,15 @@ services:
       JWT_SECRET: ${JWT_SECRET:-1269c1c80fdd94015120dac69e2c28f3de3d3519db5aed5ebfe08a862eb6f8ac}
       FRONTEND_ORIGIN: http://localhost:3000
       NODE_ENV: production
+      # Optional — leave unset (the default) to fall back to logging
+      # verification links to `docker logs dayflow-backend` instead of a
+      # real send. Set all of SMTP_HOST/PORT/USER/PASS/FROM via a root .env
+      # (see .env.example) to send real verification email.
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM: ${SMTP_FROM:-}
     ports:
       - "5000:5000"
     depends_on:

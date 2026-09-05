@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useNavigate, useLocation, Link } from 'react-router-dom';
+import React, { useEffect, useRef, useState } from 'react';
+import { useNavigate, useLocation, useSearchParams, Link } from 'react-router-dom';
 import { MailCheck, KeyRound, ArrowRight } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/primitives/Card';
 import { FormField, Input } from '../components/primitives/FormField';
@@ -12,27 +12,22 @@ import { parseApiError } from '../utils/apiHelper';
 export const VerifyEmailPage: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const initialEmail = (location.state as { email?: string })?.email || '';
+  const tokenFromLink = searchParams.get('token') || '';
 
   const [email, setEmail] = useState(initialEmail);
-  const [code, setCode] = useState('');
+  const [code, setCode] = useState(tokenFromLink);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSuccess, setIsSuccess] = useState(false);
+  const autoSubmitAttempted = useRef(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const verify = async (token: string) => {
     setErrorMessage(null);
-
-    if (!code) {
-      setErrorMessage('Please paste your verification token.');
-      return;
-    }
-
     setIsLoading(true);
-
     try {
-      const payload: VerifyEmailRequest = { token: code };
+      const payload: VerifyEmailRequest = { token };
       await verifyEmailRequest(payload);
 
       setIsSuccess(true);
@@ -45,6 +40,30 @@ export const VerifyEmailPage: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // A real "Verify your email" link (see backend Mailer) opens this page as
+  // /verify-email?token=... — auto-verify immediately instead of making the
+  // user notice, copy, and re-paste a token that's already sitting in the
+  // address bar they just clicked from. The manual field below stays for the
+  // dev-mode path (token printed to the server console, not in any link).
+  useEffect(() => {
+    if (tokenFromLink && !autoSubmitAttempted.current) {
+      autoSubmitAttempted.current = true;
+      verify(tokenFromLink);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tokenFromLink]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!code) {
+      setErrorMessage('Please paste your verification token.');
+      return;
+    }
+
+    await verify(code);
   };
 
   return (
@@ -69,6 +88,10 @@ export const VerifyEmailPage: React.FC = () => {
               title="Email Verified Successfully!"
               message="Your account is now active. Redirecting you to the login screen..."
             />
+          ) : tokenFromLink && isLoading && !errorMessage ? (
+            <div style={{ textAlign: 'center', color: 'var(--color-slate-600)', padding: 'var(--space-lg) 0' }}>
+              Verifying your email…
+            </div>
           ) : (
             <>
               {errorMessage && <ErrorBanner variant="error" message={errorMessage} />}
