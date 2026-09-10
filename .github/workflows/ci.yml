@@ -140,7 +140,7 @@ jobs:
             -e FRONTEND_ORIGIN="http://localhost:3000" \
             -e PORT="5000" \
             -v "${{ github.workspace }}:/app" -w /app/dayflow-hrms node:20-alpine \
-            sh -c "npm run e2e"
+            sh -c "npm ci && npm run e2e"
 
       - name: Show container logs on failure
         if: failure()
