@@ -53,22 +53,27 @@ Dayflow HRMS is built against a single frozen contract (`dayflow-hrms/CONTRACT.m
 
 ## 🏗️ Architecture
 
-```
-                        CONTRACT.md  +  shared/types.ts
-                     (single source of truth for every DTO)
-                                    │
-                ┌───────────────────┴───────────────────┐
-                ▼                                        ▼
-    React + Vite frontend                      Express + TypeScript backend
-    (dayflow-hrms/frontend)                     (dayflow-hrms/backend)
-    ┌─────────────────────────┐   HTTP/JSON     ┌─────────────────────────┐
-    │ typed API client        │   Bearer JWT    │ routes → services →     │
-    │ (src/api-client/)       ├────────────────►│ repositories            │
-    └─────────────────────────┘                 └────────────┬────────────┘
-                                                               │ parameterized SQL
-                                                               ▼
-                                                  PostgreSQL 16
-                                                  (dayflow-hrms/database)
+```mermaid
+flowchart TB
+    Contract["CONTRACT.md + shared/types.ts\nsingle source of truth for every DTO"]
+
+    subgraph Frontend["Frontend — React + Vite (dayflow-hrms/frontend)"]
+        Client["Typed API client\nsrc/api-client/"]
+    end
+
+    subgraph Backend["Backend — Express + TypeScript (dayflow-hrms/backend)"]
+        Routes["Routes\nHTTP, auth/role middleware"]
+        Services["Services\nbusiness logic & validation"]
+        Repos["Repositories\nparameterized SQL"]
+        Routes --> Services --> Repos
+    end
+
+    DB[("PostgreSQL 16\nRow-Level Security\ndayflow-hrms/database")]
+
+    Contract -.types imported by.-> Frontend
+    Contract -.types imported by.-> Backend
+    Client -- "HTTP/JSON, Bearer JWT" --> Routes
+    Repos -- "parameterized SQL" --> DB
 ```
 
 Each layer is intentionally thin and single-purpose:
