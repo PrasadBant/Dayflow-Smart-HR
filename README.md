@@ -1,24 +1,57 @@
+<div align="center">
+
 # Dayflow HRMS
 
-A full-stack Human Resource Management System covering employee profiles, department structure, attendance tracking, leave request workflows, payroll records, and document metadata.
+**A full-stack Human Resource Management System** — employee profiles, attendance, leave workflows, payroll, and document records, built on a single frozen API contract shared end-to-end between backend and frontend.
 
-The system is built against a single frozen contract (`dayflow-hrms/CONTRACT.md`) and a shared TypeScript type definition file (`dayflow-hrms/shared/types.ts`) that both the backend and frontend import directly, so request/response shapes stay in sync by construction rather than by convention.
+[![CI Pipeline](https://github.com/PrasadBant/Dayflow-Smart-HR/actions/workflows/ci.yml/badge.svg)](https://github.com/PrasadBant/Dayflow-Smart-HR/actions/workflows/ci.yml)
+![Node](https://img.shields.io/badge/node-20.x-339933?logo=node.js&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?logo=typescript&logoColor=white)
+![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)
+![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)
+
+[Getting Started](#-getting-started) · [API Overview](#-api-overview) · [Testing](#-testing) · [Contributing](#-contributing)
+
+</div>
+
+---
 
 ## Contents
 
-- [Architecture](#architecture)
-- [Tech stack](#tech-stack)
-- [Repository structure](#repository-structure)
-- [Getting started](#getting-started)
-- [Environment variables](#environment-variables)
-- [API overview](#api-overview)
-- [Authentication & authorization](#authentication--authorization)
-- [Core business rules](#core-business-rules)
-- [Testing](#testing)
-- [Seeded accounts](#seeded-accounts)
-- [Known limitations](#known-limitations)
+- [Overview](#overview)
+- [Features](#-features)
+- [Architecture](#-architecture)
+- [Tech stack](#-tech-stack)
+- [Repository structure](#-repository-structure)
+- [Getting started](#-getting-started)
+- [Environment variables](#-environment-variables)
+- [API overview](#-api-overview)
+- [Authentication & authorization](#-authentication--authorization)
+- [Core business rules](#-core-business-rules)
+- [Testing](#-testing)
+- [Seeded accounts](#-seeded-accounts)
+- [Known limitations](#-known-limitations)
+- [Contributing](#-contributing)
+- [License](#-license)
 
-## Architecture
+## Overview
+
+Dayflow HRMS is built against a single frozen contract (`dayflow-hrms/CONTRACT.md`) and a shared TypeScript type definition file (`dayflow-hrms/shared/types.ts`) that both the backend and frontend import directly, so request/response shapes stay in sync **by construction**, not by convention. Every endpoint, DTO, and error code traces back to that one file.
+
+## ✨ Features
+
+- **Employee self-service** — profile management, daily check-in/check-out, leave requests, payslip and document viewing.
+- **HR administration** — company-wide employee directory with search/filtering, leave approval queue, payroll editing, department management.
+- **Role-based access control** — every route is guarded by JWT-derived role/identity, backed by a second, independent enforcement layer at the database (Postgres Row-Level Security), not just middleware.
+- **Real business-rule enforcement** — overlapping leave, double check-ins, and negative payroll are rejected at both the application and database layers, not just validated client-side.
+- **Self-service auth lifecycle** — signup, email verification, and password reset, each backed by real single-use, time-boxed tokens.
+- **Command-center UX** — a "needs your attention" system surfaces real, actionable items (pending approvals, incomplete profiles, unassigned departments) instead of a static widget wall, plus a keyboard-driven command palette (`Ctrl/Cmd+K`).
+- **Fully typed, contract-first API** — one shared `types.ts` file is the single source of truth for every request/response shape on both sides of the wire.
+- **Containerized, one-command startup** — `docker compose up --build` brings up the database (schema + seed + RLS), backend, and frontend, each gated on its dependency's healthcheck.
+
+## 🏗️ Architecture
 
 ```
                         CONTRACT.md  +  shared/types.ts
@@ -44,17 +77,19 @@ Each layer is intentionally thin and single-purpose:
 - **Services** (`backend/src/services/`) hold business logic and validation (password strength, leave overlap, payroll non-negativity, etc.).
 - **Repositories** (`backend/src/repositories/`) are the only layer that talks to Postgres, exclusively via parameterized queries.
 
-## Tech stack
+## 🧰 Tech stack
 
 | Layer | Technology |
 |---|---|
 | Frontend | React 18, Vite 5, TypeScript, React Router |
 | Backend | Node.js 20, Express, TypeScript |
-| Database | PostgreSQL 16 |
+| Database | PostgreSQL 16 (with Row-Level Security) |
 | Auth | JWT (HS256, 8-hour expiry), bcrypt |
+| Email | nodemailer (falls back to console-logged links when unconfigured) |
 | Containerization | Docker, Docker Compose |
+| CI | GitHub Actions (typecheck, build, unit tests, full E2E against a live stack) |
 
-## Repository structure
+## 📁 Repository structure
 
 ```
 Dayflow-Smart-HR/
@@ -90,7 +125,7 @@ Dayflow-Smart-HR/
     └── scripts/                  # unified E2E runner, DB constraint verification
 ```
 
-## Getting started
+## 🚀 Getting started
 
 ### Option A — Docker Compose (recommended)
 
@@ -103,15 +138,19 @@ docker compose up --build -d
 docker compose ps
 ```
 
-- Frontend: http://localhost:3000
-- Backend API: http://localhost:5000/api
-- Postgres: localhost:5432 (`dayflow_db`)
+| Service | URL |
+|---|---|
+| Frontend | http://localhost:3000 |
+| Backend API | http://localhost:5000/api |
+| Postgres | `localhost:5432` (`dayflow_db`) |
 
 The `db` service initializes from `schema.sql`, `seed.sql`, and `a7_rls.sql` on first boot (a named volume persists data across restarts — remove it with `docker compose down -v` to force a clean re-seed). `backend` and `frontend` both wait on their upstream dependency's healthcheck before starting.
 
 ### Option B — Local development
 
-**Database:**
+<details>
+<summary><strong>Database setup</strong></summary>
+
 ```bash
 createdb -U postgres dayflow_db
 psql -U postgres -d dayflow_db -f dayflow-hrms/database/schema.sql
@@ -123,9 +162,14 @@ psql -U postgres -d dayflow_db -f dayflow-hrms/database/seed.sql
 # down — change both consistently if you use a different one.
 sed "s/__APP_DB_PASSWORD__/dayflow_app_password/g" dayflow-hrms/database/a7_rls.sql | psql -U postgres -d dayflow_db
 ```
+
 The third step creates the `dayflow_app` role and RLS policies that `DATABASE_URL` below connects as — running only the first two (schema + seed) leaves that role nonexistent, so don't skip it even for local/throwaway use. This mirrors what `database/init-rls.sh` automates for the Docker Compose path.
 
-**Backend** (`dayflow-hrms/backend`):
+</details>
+
+<details>
+<summary><strong>Backend</strong> (<code>dayflow-hrms/backend</code>)</summary>
+
 ```bash
 cd dayflow-hrms/backend
 npm install
@@ -133,14 +177,20 @@ cp ../../deployment/env.template .env   # or export the vars listed below direct
 npm run dev
 ```
 
-**Frontend** (`dayflow-hrms/frontend`):
+</details>
+
+<details>
+<summary><strong>Frontend</strong> (<code>dayflow-hrms/frontend</code>)</summary>
+
 ```bash
 cd dayflow-hrms/frontend
 npm install
 npm run dev
 ```
 
-## Environment variables
+</details>
+
+## 🔐 Environment variables
 
 | Variable | Used by | Description |
 |---|---|---|
@@ -150,13 +200,13 @@ npm run dev
 | `FRONTEND_ORIGIN` | backend | Exact origin allowed by CORS |
 | `NODE_ENV` | backend | `development` \| `production` |
 | `VITE_API_URL` | frontend | Base API URL the browser calls (e.g. `http://localhost:5000/api`) |
-| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` | backend | Optional. Without them, verification/password-reset emails are logged to the backend console instead of sent — see [Authentication & authorization](#authentication--authorization) |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` | backend | Optional. Without them, verification/password-reset emails are logged to the backend console instead of sent — see [Authentication & authorization](#-authentication--authorization) |
 
-A working set of local defaults is in `deployment/env.template`. The Docker Compose stack (`docker-compose.yml`) additionally reads `POSTGRES_USER`/`POSTGRES_PASSWORD`/`POSTGRES_DB` (the database's own superuser, used only for schema initialization) and `APP_DB_USER`/`APP_DB_PASSWORD` (the non-superuser role the backend actually connects as — see [Authentication & authorization](#authentication--authorization) for why that distinction matters) from an optional root-level `.env` file; see `.env.example`.
+A working set of local defaults is in `deployment/env.template`. The Docker Compose stack (`docker-compose.yml`) additionally reads `POSTGRES_USER`/`POSTGRES_PASSWORD`/`POSTGRES_DB` (the database's own superuser, used only for schema initialization) and `APP_DB_USER`/`APP_DB_PASSWORD` (the non-superuser role the backend actually connects as — see [Authentication & authorization](#-authentication--authorization) for why that distinction matters) from an optional root-level `.env` file; see `.env.example`.
 
-**Production configuration fails closed.** `docker-compose.yml` hardcodes `NODE_ENV=production`, and `backend/src/config/env.ts` refuses to start under that mode if it's still using the compose file's own default JWT secret, the default DB password, or has no `SMTP_HOST`/`SMTP_FROM` configured — copy `.env.example` to a root `.env` and fill in real values first. This is a deliberate change from earlier versions of this project, which only logged a warning; a real deployment shouldn't be able to silently go live with committed placeholder secrets or no way to actually deliver account email. The `APP_DB_PASSWORD` you set is also what `database/init-rls.sh` uses to create the `dayflow_app` role at DB init time (substituted into `database/a7_rls.sql`, which is otherwise a template, not run directly) — set it once and both sides pick it up consistently.
+> **Production configuration fails closed.** `docker-compose.yml` hardcodes `NODE_ENV=production`, and `backend/src/config/env.ts` refuses to start under that mode if it's still using the compose file's own default JWT secret, the default DB password, or has no `SMTP_HOST`/`SMTP_FROM` configured — copy `.env.example` to a root `.env` and fill in real values first. A real deployment shouldn't be able to silently go live with committed placeholder secrets or no way to actually deliver account email. The `APP_DB_PASSWORD` you set is also what `database/init-rls.sh` uses to create the `dayflow_app` role at DB init time (substituted into `database/a7_rls.sql`, which is otherwise a template, not run directly) — set it once and both sides pick it up consistently.
 
-## API overview
+## 📡 API overview
 
 All 25 endpoints in `CONTRACT.md` are implemented, mounted under `/api`:
 
@@ -184,7 +234,7 @@ Every response follows `shared/types.ts`'s shapes exactly. Errors use a single e
 
 `code` is always one of the `ErrorCode` values defined in `shared/types.ts` (`UNAUTHORIZED`, `FORBIDDEN`, `NOT_FOUND`, `CONFLICT`, `VALIDATION_ERROR`, `LEAVE_OVERLAP`, `EMAIL_TAKEN`, `EMAIL_NOT_VERIFIED`, `ALREADY_CHECKED_IN`, `NOT_CHECKED_IN`, `INTERNAL_ERROR`).
 
-## Authentication & authorization
+## 🔑 Authentication & authorization
 
 - JWTs are signed with HS256, carry `{ userId, employeeId, role }`, and expire after 8 hours. Pass as `Authorization: Bearer <token>`.
 - Passwords are hashed with bcrypt (10 rounds) and must be 8+ characters with at least one letter and one digit.
@@ -195,7 +245,7 @@ Every response follows `shared/types.ts`'s shapes exactly. Errors use a single e
 - Every route that takes an `:id`/`:employeeId` path parameter is gated `HR Only`; there is no "employee accessing their own ID via a shared route" case in this contract, so role-checking middleware doubles as the IDOR boundary. `/me` routes derive the acting employee from the JWT, never from client input.
 - **Row-level security** (`database/a7_rls.sql`) is a real, enforced second boundary, not just documentation: the backend connects to Postgres as the dedicated non-superuser `dayflow_app` role (never the superuser Docker Compose provisions the database with), and every query automatically carries the request's role/employee id as Postgres session context (`backend/src/config/requestContext.ts`, applied transparently in `db.ts`). `tests/e2e/rls-security.test.ts` verifies this directly against the database, independent of the application-level `requireAuth`/`requireRole` middleware.
 
-## Core business rules
+## 📐 Core business rules
 
 | Rule | Enforcement |
 |---|---|
@@ -205,7 +255,7 @@ Every response follows `shared/types.ts`'s shapes exactly. Errors use a single e
 | BR-6 — Non-negative payroll | Enforced in the service layer and via `CHECK` constraints on the table |
 | BR-7 — Password strength | 8+ characters, at least one letter and one digit |
 
-## Testing
+## 🧪 Testing
 
 **Backend** (`dayflow-hrms/backend`):
 ```bash
@@ -216,7 +266,7 @@ npx ts-node tests/leave.overlap.test.ts
 npx ts-node tests/authz-idor.test.ts
 npx ts-node tests/signup.test.ts
 ```
-There is no `npm test` script — the four files above are self-contained scripts (no external test runner), each printing a pass/fail summary. All four are green as of this commit.
+There is no `npm test` script — the four files above are self-contained scripts (no external test runner), each printing a pass/fail summary.
 
 **Frontend** (`dayflow-hrms/frontend`):
 ```bash
@@ -228,9 +278,9 @@ npm run build   # runs tsc, then vite build
 
 **CI** (`.github/workflows/ci.yml`): three jobs — `backend` (typecheck, build, the four unit-test scripts, `npm audit`), `frontend` (lint, typecheck, build, `npm audit`), and `e2e` (builds and starts the real Docker Compose stack with no `.env` overrides, then runs the full E2E suite against it — the only gate that exercises the real database/RLS/container wiring end-to-end).
 
-## Seeded accounts
+## 👤 Seeded accounts
 
-Available once `seed.sql` has run (password is the same for all three):
+Available once `seed.sql` has run (password is the same for all three). **Demo/development credentials only** — never reuse them in a real deployment.
 
 | Role | Email | Password |
 |---|---|---|
@@ -238,10 +288,32 @@ Available once `seed.sql` has run (password is the same for all three):
 | Employee | `john.doe@dayflow.com` | `Password123!` |
 | Employee | `jane.smith@dayflow.com` | `Password123!` |
 
-## Known limitations
+## 🗺️ Known limitations
 
 - **E2E test runner / Node version coupling.** The `tests/e2e/` scripts import directly from `frontend/src/api-client/`. On very new Node releases with native TypeScript handling, this can conflict with the pinned `ts-node@10.9.2`. If you hit this, either run the individual backend test scripts above (which are unaffected — they stay entirely within `backend/`), or upgrade `ts-node`/switch to `tsx` at the `dayflow-hrms/` root.
-- **No password-reset UI is a thing of the past, but no self-service account recovery beyond it exists** — HR can correct an employee's profile fields via `PATCH /employees/:id`, but there's no admin "force password reset" flow; a locked-out user must use `forgot-password` themselves.
+- **No admin-initiated password reset.** HR can correct an employee's profile fields via `PATCH /employees/:id`, but there's no "force password reset" flow; a locked-out user must use `forgot-password` themselves.
 - **Email delivery is optional infrastructure, not application logic.** Without `SMTP_*` configured, verification and password-reset links work correctly but only reach the backend's console log — fine for local/demo use, not for onboarding real users. The application never pretends an email was sent when it wasn't; the API response is explicit about which mode it's running in.
 - **The in-memory auth rate limiter is single-instance.** Correct for the one-container-per-service deployment this repo ships; a horizontally-scaled deployment behind a load balancer would need a shared store (e.g. Redis) for the limit to apply across instances rather than per-instance.
 - **No backup/restore strategy is implemented or documented beyond Postgres's own named Docker volume.** Treat this as an external operational responsibility for any real deployment.
+
+## 🤝 Contributing
+
+Contributions are welcome. Before opening a PR:
+
+1. Fork the repo and create a feature branch off `main`.
+2. Make your change, keeping it consistent with the layering in [Architecture](#-architecture) — routes stay HTTP-only, business logic lives in services, and only repositories touch SQL.
+3. If you touch a request/response shape, update `dayflow-hrms/shared/types.ts` and `dayflow-hrms/CONTRACT.md` together — they're meant to never drift.
+4. Run the relevant checks from [Testing](#-testing) locally; CI runs the same ones on every push and PR.
+5. Open a PR describing the change and why it's needed.
+
+## 📄 License
+
+No license file is currently included in this repository. All rights are reserved by the author unless a license is added.
+
+---
+
+<div align="center">
+
+Built by [Prasad Bant](https://github.com/PrasadBant)
+
+</div>
